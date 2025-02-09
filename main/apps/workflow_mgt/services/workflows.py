@@ -20,7 +20,7 @@ def text_analysis(user_prompt):
         }
     """
     client = OpenAI(
-        api_key="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",  # This is the default and can be omitted
+        api_key=os.getenv("OPENAI_API_KEY", ""), 
     )
     # System Prompt：示範如何對 GPT 設定指令，如需產生 2D array 代表先後/並行子需求等
     system_prompt = """
