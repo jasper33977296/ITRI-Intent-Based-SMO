@@ -99,13 +99,22 @@ class ConversationManager:
 
             # 5) 在 Broker 註冊 Topic
             try:
-                broker = TopicBroker()
-                broker.init_topic(conversation_uid)
+                topic_payload = {
+                    "conversation_uid": conversation_uid
+                }
+                resp_topic = json_request(
+                    module="topic_mgt",
+                    actor="TopicManager",
+                    function="init_topic",
+                    payload=topic_payload,
+                )
+                topic_data = resp_topic.json()
+                if not topic_data.get("status", False):
+                    return JsonResponse(topic_data, status=topic_data.get("status_code", 400))
             except Exception as e:
-                # 這裡可視需求決定要不要當作錯誤返回
                 return JsonResponse({
                     "status": False,
-                    "message": f"Failed to register topic in broker: {str(e)}"
+                    "message": f"Failed to register topic (topic_mgt) : {str(e)}"
                 }, status=500)
 
             # 全部成功
