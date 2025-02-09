@@ -97,7 +97,7 @@ class ConversationManager():
     @csrf_exempt
     @log_trigger("INFO")
     @require_http_methods(["POST"])
-    def get_conversation(request):
+    def get_conversation_metadata(request):
         """
         Input (POST JSON):
             conversation_uid (必填)
