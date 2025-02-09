@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.sqlite3
+
+# Virtualenv
+.env
+.venv
+
+# Logs
+logs/
+texts/
+conversations/
+
+# Docker
+docker-compose.override.yml
+
+# Pipfile
+Pipfile
+Pipfile.*
+
