@@ -61,7 +61,7 @@ class ConversationManager():
     @csrf_exempt
     @log_trigger("INFO")
     @require_http_methods(["POST"])
-    def get_user_conversation_list(request):
+    def get_conversation_metadata_list(request):
         """
         Input (POST JSON):
             user_uid (必填)
@@ -182,7 +182,7 @@ class ConversationManager():
     @csrf_exempt
     @log_trigger("INFO")
     @require_http_methods(["POST"])
-    def delete_conversation(request):
+    def delete_conversation_metadata(request):
         """
         Input (POST JSON):
             conversation_uid (必填)
