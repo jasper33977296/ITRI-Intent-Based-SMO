@@ -221,7 +221,7 @@ class UserManager:
                 resp = json_request(
                     module="metadata_mgt",
                     actor="ConversationManager",
-                    function="get_user_conversation_metadata_list",
+                    function="get_conversation_metadata_list",
                     payload=meta_payload
                     )
                 conversation_data = resp.json()
