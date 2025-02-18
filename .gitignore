@@ -19,4 +19,4 @@ Dockerfile.dev
 # Pipfile
 Pipfile
 Pipfile.*
-
+migrations/

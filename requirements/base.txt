@@ -7,3 +7,5 @@ django-cors-headers==4.3.1
 channels[daphne]==4.2.0
 channels_redis== 4.2.1
 openai==1.61.0
+pymongo==3.11.4
+mongoengine==0.29.1
