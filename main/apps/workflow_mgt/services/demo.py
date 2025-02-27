@@ -4,10 +4,10 @@ from main.utils.TextDecorator import text_decorator
 from asgiref.sync import sync_to_async
 # ❶ 直接使用新版 AsyncOpenAI；不再用舊的 openai.ChatCompletion.create()
 from openai import AsyncOpenAI
-
+import os
 # 假設專案中直接建立一個全域客戶端實例，或在更高層級集中管理
 openai_client = AsyncOpenAI(
-    api_key="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"
+    api_key=os.getenv("OPENAI_API_KEY", "")
 )
 
 async def call_openai(system_prompt: str, user_content: str) -> str:
