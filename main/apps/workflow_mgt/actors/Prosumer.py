@@ -122,7 +122,7 @@ class Prosumer(AsyncWebsocketConsumer):
         event_type = data.get("event_type", "")
         conversation_uid = data.get("conversation_uid", "")
         text_body = data.get("text", {})
-        print(f"[Prosumer.receive] event_type: {event_type}, conversation_uid: {conversation_uid}, text_body: {text_body}")
+        
         if event_type == "test":
             # 直接回應前端相同的內容
             await self.broker_message({
@@ -132,105 +132,7 @@ class Prosumer(AsyncWebsocketConsumer):
                 "payload": {"text": text_body}
             })
         elif event_type == "demo":
-            """
-            完全依賴 text_content[0].content 來判斷第一階段/第二階段
-            若 content_str == "Update SMO Info" => 第二階段
-            否則 => 第一階段
-            """
-            text_content_list = text_body.get("text_content", [])
-            first_item = text_content_list[0] if text_content_list else {}
-            content_str = first_item.get("content", "")
-
-            if content_str == "Query Field Info":
-                print("=== Trigger Second Stage: UpdateSMOFlow (Mock) ===")
-                
-                # (a) 呼叫 LLM => 第一段
-                system_prompt_2 = f"你是一個專家 AI，請簡短說明我們將要{content_str}資訊，場景應用在5G SMO當中。"
-                user_msg_2 = "請描述 Query Field Info 的意義。"
-                try:
-                    llm_text_second = await call_openai(system_prompt_2, user_msg_2)
-                except Exception as e:
-                    print(f"[Demo Second-phase LLM error] {e}")
-                    llm_text_second = "（LLM呼叫失敗）"
-
-                # 傳送第一段 LLM 文字
-                await self.demo_broker_message(
-                    conversation_uid,
-                    [{"type": "text", "content": llm_text_second}]
-                )
-
-                # (b) 執行 Mock UpdateSMOFlow => 拿回 table_data
-                table_data = await second_stage_update_smo_flow(conversation_uid)
-
-                # 傳送第二段 (table)
-                await self.demo_broker_message(
-                    conversation_uid,
-                    [{"type": "table", "content": table_data}]
-                )
-
-            else:
-                # ------------ 第一階段 ------------
-                print("=== Trigger First Stage ===")
-
-                # (A) 先呼叫 API => 取得可用場景清單
-                try:
-                    resp = await json_request_async(
-                        module="metadata_mgt",
-                        actor="ScenarioManager",
-                        function="get_scenario_list",
-                        method="POST",
-                        payload={}
-                    )
-                    scenario_data_list = resp.json().get("data", [])
-                except Exception as e:
-                    print(f"[Demo First-phase scenario list error] {e}")
-                    scenario_data_list = []
-
-                # (B) 呼叫 LLM => 產生第一段文字
-                scenario_names = [s.get("scenario_name") for s in scenario_data_list if s.get("scenario_name")]
-                scenario_str = "\n".join(f"- {nm}" for nm in scenario_names) or "（沒有可用場景）"
-
-                system_prompt_1 = "你是一個非常禮貌的AI，請向使用者介紹以下後端取得的Scenario清單："
-                user_msg_1 = f"Scenario清單：\n{scenario_str}\n請幫我產生一段介紹文字。"
-
-                try:
-                    llm_text_first = await call_openai(system_prompt_1, user_msg_1)
-                except Exception as e:
-                    print(f"[Demo First-phase LLM error] {e}")
-                    llm_text_first = "（LLM呼叫失敗）"
-
-                # 傳送第一段 (LLM文字)
-                await self.demo_broker_message(
-                    conversation_uid,
-                    [{"type": "text", "content": llm_text_first}]
-                )
-
-                # (C) 轉成選項 => 第二段
-                choices = []
-                for sc in scenario_data_list:
-                    sname = sc.get("scenario_name")
-                    suid = sc.get("scenario_uid")
-                    if sname:
-                        choices.append({"id": suid or "N/A", "label": sname})
-
-                if not choices:
-                    choices = [
-                        {"id": "001", "label": "xxx_scenario"},
-                        {"id": "002", "label": "yyy_scenario"}
-                    ]
-
-                await self.demo_broker_message(
-                    conversation_uid,
-                    [{
-                        "type": "option",
-                        "content": {
-                            "choices": choices
-                        }
-                    }]
-                )
-
-
-        else:
+            print(123)
             # 其他狀況下，可能需要呼叫外部 API 或 publish 給同一 conversation 的其他 Prosumer
             payload = {
                 "conversation_uid": self.conversation_uid,
