@@ -96,7 +96,7 @@ async def json_request_async(
     function: str,
     payload: dict = None,
     method: str = 'POST',
-    timeout: int = 5,
+    timeout: int = 60,
     protocol: str = 'http'
 ) -> httpx.Response:
     """

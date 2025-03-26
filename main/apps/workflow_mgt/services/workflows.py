@@ -1,9 +1,10 @@
 import os
 import json
 import requests
+from openai import OpenAI
 
 
-def dify_execute_workflow(conversation_uid, user_prompt):
+def dify_single_intent_workflow(user_prompt):
     """
     並將結果以 Python dict 回傳給呼叫者。
 
@@ -19,17 +20,15 @@ def dify_execute_workflow(conversation_uid, user_prompt):
     """
     # 建議在必要時把 user_prompt 帶入 payload["query"] 中 (目前示例寫死成 "text")
     # 也可依實際需求調整：payload["inputs"] 等欄位
-    api_key = os.getenv("DIFY_API_KEY", "")
-    bearer = "Bearer "+api_key
 
     headers = {
-        "Authorization": bearer,
+        "Authorization": "Bearer app-cb9qWaiVl2h7IbKEIUsSx9Ps",
         "Content-Type": "application/json"
     }
 
     payload = {
-        "query": user_prompt,  
-        "inputs": { "conversation_uid":conversation_uid},
+        "query": f"{user_prompt}",  # 如有需要，可改成 user_prompt
+        "inputs": {},
         "response_mode": "streaming",
         "user": "test_user6",
         "conversation_id":"",
@@ -43,9 +42,8 @@ def dify_execute_workflow(conversation_uid, user_prompt):
 
     try:
         # 1. 呼叫 dify_workflow
-        host = os.getenv("HTTP_DIFY_HOST", "")
         response = requests.post(
-            f"http://{host}/v1/chat-messages",
+            "http://140.118.162.92/v1/chat-messages",
             headers=headers,
             json=payload,
             timeout=60

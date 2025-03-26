@@ -2,7 +2,7 @@ import json
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
-from main.apps.workflow_mgt.services.workflows import dify_execute_workflow
+from main.apps.workflow_mgt.services.workflows import text_analysis
 from main.utils.ApiKit import json_request
 
 class WorkflowManager:
@@ -163,7 +163,33 @@ class WorkflowManager:
             # 檢查後端回傳是否成功 ==還需要更改==
             if not meta_data.get("status", False):
                 return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
-            
+
+            # 從回傳資料中取出 step, status
+            workflow_info = meta_data.get("data", {})
+            workflow_step = workflow_info.get("workflow_step", "text_analysis")
+
+            # (3) 根據 step 呼叫對應函式
+            if workflow_step == "text_analysis":
+                result = text_analysis(user_content)
+            # elif workflow_step == "require_scenario_mapping":
+            #     result = require_scenario_mapping(user_content)
+            #     event_type = "require_scenario_mapping"
+            # elif workflow_step == "scenario_apiflow_mapping":
+            #     result = scenario_apiflow_mapping(user_content)
+            #     event_type = "scenario_apiflow_mapping"
+            # elif workflow_step == "apiflow_orgainize":
+            #     result = apiflow_orgainize(user_content)
+            #     event_type = "apiflow_orgainize"
+            # elif workflow_step == "apiflow_test":
+            #     result = apiflow_test(user_content)
+            #     event_type = "apiflow_test"
+            # elif workflow_step == "apiflow_execute":
+            #     result = apiflow_execute(user_content)
+            #     event_type = "apiflow_execute"
+            else:
+                # 若不在預期清單內，就當作未知
+                result = f"Unknown workflow_step ({workflow_step}). content={user_content}"
+
             return JsonResponse({
                 "status_code": 200,
                 "message": "Workflow 更新成功"
