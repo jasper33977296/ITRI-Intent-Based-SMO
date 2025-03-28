@@ -36,7 +36,7 @@ def json_request(
     protocol: str = 'http'
 ):
     """
-    動態組出 API url，並根據指定的 method (預設 POST) 發送 JSON 請求。
+    動態組出系統內部 API url，並根據指定的 method (預設 POST) 發送 JSON 請求。
 
     :param protocol: 'http' or 'https' (default: 'http')
     :param module:   模組名稱(對應 MODULE_ENV_MAPPING 的 key, 如 'metadata_mgt')
@@ -101,7 +101,7 @@ async def json_request_async(
 ) -> httpx.Response:
     """
     非同步 (httpx) 版本：
-    動態組出 API url，並根據指定的 method 發送非同步 JSON 請求。
+    動態組出系統內部 API url，並根據指定的 method 發送非同步 JSON 請求。
 
     :param protocol: 'http' or 'https' (default: 'http')
     :param module:   模組名稱(對應 MODULE_ENV_MAPPING 的 key, 如 'metadata_mgt')
