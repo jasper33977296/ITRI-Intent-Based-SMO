@@ -1,11 +1,9 @@
 import json
 import uuid
-import openai
 from channels.generic.websocket import AsyncWebsocketConsumer
 from main.utils.TextDecorator import text_decorator
 from main.utils.ApiKit import json_request_async
-from asgiref.sync import sync_to_async
-from main.apps.workflow_mgt.services.demo import handle_demo_event ,call_openai
+
 class Prosumer(AsyncWebsocketConsumer):
     """
     Prosumer：
@@ -132,14 +130,13 @@ class Prosumer(AsyncWebsocketConsumer):
                 "payload": {"text": text_body}
             })
         elif event_type == "demo":
-            print(123)
             # 其他狀況下，可能需要呼叫外部 API 或 publish 給同一 conversation 的其他 Prosumer
             payload = {
                 "conversation_uid": self.conversation_uid,
                 "text": text_body
             }
             try:
-                # 使用 json_request_async 呼叫 workflow_mgt 的 "execute_workflow"
+                #使用 json_request_async 呼叫 workflow_mgt 的 "execute_workflow"
                 resp = await json_request_async(
                     module="workflow_mgt",
                     actor="WorkflowManager",
@@ -149,20 +146,24 @@ class Prosumer(AsyncWebsocketConsumer):
                 )
 
                 resp_data = resp.json()
-                print(resp_data)
-                text_body = resp_data.get("text", {})
+                text = resp_data.get("text", "小廢物")
 
+                text_body = {"text_content": [{
+                                "type":"message",
+                                "content":text
+                            }]}
+ 
                 await self.broker_message({
                     "type": "broker_message",
-                    "event_type": resp_data["event_type"],
-                    "conversation_uid": resp_data["conversation_uid"],
+                    "event_type": "text_analysis",
+                    "conversation_uid": self.conversation_uid,
                     "payload": {"text": text_body}
                 })
 
             except Exception as e:
                 # 錯誤處理
                 print(f"[Prosumer] Failed to call execute workflow API: {e}")
-
+    
     @text_decorator(role="llm")
     async def broker_message(self, event):
         """
@@ -172,127 +173,11 @@ class Prosumer(AsyncWebsocketConsumer):
         event_type = event["event_type"]
         conversation_uid = event["conversation_uid"]
         payload = event["payload"]
-        text = payload.get("text", "")
+        text_body = payload.get("text", {})
         await self.send(text_data=json.dumps({
             "event_type": event_type,
             "conversation_uid": conversation_uid,
-            "text": text
+            "text": text_body
         }, ensure_ascii=False))
 
-
-    async def demo_broker_message(self, conversation_uid: str, text_content_list: list):
-        """
-        統一格式回傳 event_type = "demo"
-        text_content_list: e.g. [
-          { "type": "text",  "content": "some text" },
-          { "type": "table", "content": {"headers": [...], "rows": [...]} },
-          { "type": "option", "content": {"choices": [...]} }
-        ]
-        """
-        message = {
-            "event_type": "demo",
-            "conversation_uid": conversation_uid,
-            "text": {
-                "text_content": text_content_list
-            }
-        }
-        await self.send(text_data=json.dumps(message, ensure_ascii=False))
-
-
-async def second_stage_update_smo_flow(conversation_uid: str) -> dict:
-    """
-    模擬 "UpdateSMOFlow" 的第二階段流程，
-    以您提供的真實 API 回應作為執行結果。
-
-    執行步驟 (假裝呼叫三支 API):
-      1) login => 取得 session_id
-      2) queryFieldInfo => 取得查詢資料
-      3) filterData => 取得最終結果
-
-    最後整理出 table_data (headers, rows)，
-    回傳給呼叫端在前端顯示。
-    """
-
-    # ----------------------------------------------------
-    # 以下三段為「真實回傳內容」的文字，非真的 requests 呼叫
-    # ----------------------------------------------------
-    # (1) Login 的結果
-    print("=== 登入 ===")
-    print("狀態碼: 200")
-    print("回傳內容: {'role': 2, 'session': 'irm_session_389a522a', 'showExpireAlarm': False}")
-    print("取得的 session_id: irm_session_389a522a")
-    session_id = "irm_session_389a522a"  # 從上面取出
-
-    # (2) queryFieldInfo 的結果
-    print("\n=== queryFieldInfo ===")
-    print("狀態碼: 200")
-    query_info = {
-        "id": "745f7b37d5ad4876bc19",
-        "name": "f1",
-        "phone": "0900000000",
-        "coverage": "100",
-        "alarmCriticalNum": 5,
-        "alarmMajorNum": 7228,
-        "alarmMinorNum": 1661,
-        "alarmWarningNum": 0
-        # 此處只列出較關鍵的欄位
-    }
-    print("回傳內容:", query_info)
-
-    # (3) filterData 的結果
-    print("\n=== filterData ===")
-    print("狀態碼: 200")
-    filter_result = {
-        "result_type": "text",
-        "result_payload": {"name": "f1"}
-    }
-    print("回傳內容:", filter_result)
-
-    # ------------------------------------
-    # 將上述「真實內容」組合成您需要的 Table
-    # ------------------------------------
-    table_headers = [
-        "Session ID",
-        "Field ID",
-        "Field Name",
-        "Phone",
-        "Coverage",
-        "Major Alarm",
-        "Minor Alarm",
-        "Filter Name"
-    ]
-
-    # 從第三支API中取得的「filterData」看起來只包含名字 "f1"
-    # 這裡把三支結果合併整理成一筆 row
-    row_session_id = session_id
-    row_field_id = query_info.get("id", "")
-    row_field_name = query_info.get("name", "")
-    row_phone = query_info.get("phone", "")
-    row_coverage = query_info.get("coverage", "")
-    row_major_alarm = query_info.get("alarmMajorNum", "")
-    row_minor_alarm = query_info.get("alarmMinorNum", "")
-
-    # 第三支 API (filterData) 的 result_payload 裏面有 "name": "f1"
-    row_filter_name = filter_result.get("result_payload", {}).get("name", "")
-
-    table_rows = [[
-        row_session_id,
-        row_field_id,
-        row_field_name,
-        row_phone,
-        row_coverage,
-        row_major_alarm,
-        row_minor_alarm,
-        row_filter_name
-    ]]
-
-    table_data = {
-        "headers": table_headers,
-        "rows": table_rows
-    }
-
-    # 您可以視需要再印出結果給後端除錯
-    print("\n=== Final Table for UpdateSMOFlow ===")
-    print(table_data)
-
-    return table_data
+    
