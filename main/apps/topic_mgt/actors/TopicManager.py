@@ -161,7 +161,7 @@ class TopicManager:
                 return JsonResponse({"status": "error", "message": "Topic does not exist"}, status=404)
 
             # broker.publish 是 async function，因此要用 async_to_sync
-            async_to_sync(broker.publish)(conversation_uid, event_type, payload)
+            broker.publish(conversation_uid, event_type, payload)
 
             return JsonResponse({
                 "status": "ok",

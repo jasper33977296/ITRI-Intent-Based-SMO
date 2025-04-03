@@ -2,10 +2,10 @@ import json
 from functools import wraps
 from main.utils.ApiKit import json_request_async
 
-def text_decorator(role: str):
+def text_decorator():
     """
-    建立 text 的裝飾器，可依據傳入的 role("user"/"llm")，
-    自動組出對應的 payload，並透過非同步 json_request_async 呼叫 API。
+    建立 text 的裝飾器，可依據接收到的 event_type
+    (在 receive 方法中) 動態判斷角色 ("user"/"llm")。
     適用於 Channels 的 AsyncWebsocketConsumer 方法。
     """
     def decorator(func):
@@ -22,21 +22,28 @@ def text_decorator(role: str):
             if not conversation_uid:
                 return await func(self, *args, **kwargs)
 
-            # ---- 依照方法名稱判斷要從哪裡取得文字 ----
-            text_dict = None  # 裝飾器最後要用的 "text" 物件 (dict)
-            
+            text_dict = None
+            role = None  # 先預設為 None，後面動態判斷
+
+            # ---- 依照方法名稱，做對應的處理 ----
             if func.__name__ == "receive":
                 # 前端透過 WebSocket .send(JSON)，對應到 self.receive(text_data=...)
                 text_data = kwargs.get("text_data")
                 if text_data is None and len(args) > 0:
-                    text_data = args[0]  # 第0個位置參數
-
+                    text_data = args[0]  # 第 0 個位置參數
+                
                 if text_data:
                     try:
                         data = json.loads(text_data)
-                        # 假設前端傳 { "text": { "text_content": [...] } }
-                        # 如果前端的 key 不同，例如 "text_data" 或 "payload"，
-                        # 請自行修改這裡的 get("text")
+                        event_type = data.get("event_type", "")
+
+                        # 依據 event_type 決定角色
+                        if event_type == "demo":
+                            role = "user"
+                        else:
+                            role = "llm"
+
+                        # 解析 text_dict
                         text_dict = data.get("text", {})
                     except Exception:
                         pass  # 忽略 JSON 解析失敗
@@ -49,30 +56,26 @@ def text_decorator(role: str):
                 if event:
                     payload = event.get("payload", {})
                     text_dict = payload.get("text", {})
+                # 這邊可以自行決定固定角色，或根據需求再做判斷
+                role = "llm"  
 
-            # ---- 若取得 text_dict，嘗試取得 text_content ----
-            # 例： text_dict = { "text_content": [ { "type": "text", "content": "..." } ] }
+            # ---- 若有取得 text_dict，嘗試取得 text_content 並呼叫後端 API ----
             if isinstance(text_dict, dict):
                 text_content = text_dict.get("text_content", None)
-                if text_content is not None:
-                    # 組裝 payload
+                if text_content is not None and role is not None:
                     create_payload = {
                         "conversation_uid": conversation_uid,
                         "text_content": text_content,
                         "role": role
                     }
                     try:
-                        # 使用您提供的 json_request_async 進行非同步 API 呼叫
                         resp = await json_request_async(
                             module="conversation_mgt",
                             actor="TextManager",
                             function="create_text",
                             payload=create_payload
                         )
-                        # 根據需要，您可以檢查 resp.status_code, resp.json() 等
-                        # example:
-                        # result = resp.json()
-                        # print("[text_decorator] Response from text_mgt:", result)
+                        # 可根據需要查看 resp
                     except Exception as e:
                         print(f"[text_decorator] Failed to create text via API: {e}")
 

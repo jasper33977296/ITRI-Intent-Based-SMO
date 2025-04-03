@@ -1,6 +1,7 @@
 import redis
 from django.conf import settings
 from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 class TopicBroker:
     """
@@ -64,7 +65,7 @@ class TopicBroker:
         key = self._topic_key(conversation_uid)
         return self._redis.exists(key) == 1
 
-    async def publish(self, conversation_uid: str, event_type: str, payload: dict) -> None:
+    def publish(self, conversation_uid: str, event_type: str, payload: dict) -> None:
         """
         透過 Django Channels 的 group_send，將事件廣播給所有訂閱該 conversation_uid 的組。
 
@@ -73,14 +74,14 @@ class TopicBroker:
         :param payload: 傳遞的資料內容 (dict)
         """
         channel_layer = get_channel_layer()
-        subscribers = self.get_subscribers(conversation_uid)
-
+        subscribers = self.get_subscribers(f"conv_{conversation_uid}")
         for group_name in subscribers:
-            await channel_layer.group_send(
+            async_to_sync(channel_layer.group_send(
                 group_name,
                 {
-                    "type": "broker_message",  # Prosumer 端 handler: broker_message()
+                    "type": "broker_message",
                     "event_type": event_type,
                     "payload": payload
                 }
             )
+        )

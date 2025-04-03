@@ -73,7 +73,7 @@ def text_analysis(user_prompt):
     
 
 
-def dify_single_intent_workflow(user_prompt):
+def dify_single_intent_workflow(conversation_uid,user_prompt):
     """
     並將結果以 Python dict 回傳給呼叫者。
 
@@ -91,13 +91,13 @@ def dify_single_intent_workflow(user_prompt):
     # 也可依實際需求調整：payload["inputs"] 等欄位
 
     headers = {
-        "Authorization": "Bearer app-cb9qWaiVl2h7IbKEIUsSx9Ps",
+        "Authorization": "Bearer app-NUZaDpmFR64rrTUG92dYBLVl",
         "Content-Type": "application/json"
     }
 
     payload = {
-        "query": f"{user_prompt}",  # 如有需要，可改成 user_prompt
-        "inputs": {},
+        "query": user_prompt,  
+        "inputs": { "conversation_uid":conversation_uid},
         "response_mode": "streaming",
         "user": "test_user6",
         "conversation_id":"",
@@ -111,8 +111,9 @@ def dify_single_intent_workflow(user_prompt):
 
     try:
         # 1. 呼叫 dify_workflow
+        host = os.getenv("HTTP_DIFY_HOST", "")
         response = requests.post(
-            "http://140.118.162.92/v1/chat-messages",
+            f"http://{host}/v1/chat-messages",
             headers=headers,
             json=payload,
             timeout=60

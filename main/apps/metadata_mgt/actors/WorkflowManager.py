@@ -43,7 +43,7 @@ class WorkflowManager:
             # 2) 取出參數，若沒給則使用預設
             conversation_uid = payload["conversation_uid"]
             workflow_step = payload.get("workflow_step", "text_analysis")
-            workflow_status = payload.get("workflow_status", "Running")
+            workflow_status = payload.get("workflow_status", "Start")
 
             # 3) 呼叫 Controller 建立
             result = WorkflowController.create_workflow(
