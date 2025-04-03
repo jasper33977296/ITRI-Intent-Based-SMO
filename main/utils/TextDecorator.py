@@ -2,10 +2,10 @@ import json
 from functools import wraps
 from main.utils.ApiKit import json_request_async
 
-def text_decorator(role: str):
+def text_decorator():
     """
-    建立 text 的裝飾器，可依據傳入的 role("user"/"llm")，
-    自動組出對應的 payload，並透過非同步 json_request_async 呼叫 API。
+    建立 text 的裝飾器，可依據接收到的 event_type
+    (在 receive 方法中) 動態判斷角色 ("user"/"llm")。
     適用於 Channels 的 AsyncWebsocketConsumer 方法。
     """
     def decorator(func):
@@ -28,8 +28,8 @@ def text_decorator(role: str):
                 # 前端透過 WebSocket .send(JSON)，對應到 self.receive(text_data=...)
                 text_data = kwargs.get("text_data")
                 if text_data is None and len(args) > 0:
-                    text_data = args[0]  # 第0個位置參數
-
+                    text_data = args[0]  # 第 0 個位置參數
+                
                 if text_data:
                     try:
                         data = json.loads(text_data)

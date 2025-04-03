@@ -1,7 +1,16 @@
+import os
 import json
+import base64
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+
+from main.apps.workflow_mgt.actors.Prosumer import Prosumer
+
 from main.apps.workflow_mgt.services.workflows import dify_single_intent_workflow
 from main.utils.ApiKit import json_request
 
@@ -169,7 +178,7 @@ class WorkflowManager:
             workflow_step = workflow_info.get("workflow_step", "demo")
 
             # (3) 根據 step 呼叫對應函式
-            result = dify_single_intent_workflow(text_content)
+            result = dify_single_intent_workflow(conversation_uid=conversation_uid,user_prompt=content)
 
             text_data = result.get("parsed_data","")
 
