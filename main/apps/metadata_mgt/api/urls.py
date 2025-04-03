@@ -4,10 +4,10 @@ from main.apps.metadata_mgt.actors.ConversationManager import ConversationManage
 from main.apps.metadata_mgt.actors.TextManager import TextManager
 from main.apps.metadata_mgt.actors.ImageManager import ImageManager
 from main.apps.metadata_mgt.actors.WorkflowManager import WorkflowManager
-from main.apps.metadata_mgt.actors.ScenarioManager import ScenarioManager
-from main.apps.metadata_mgt.actors.ApiFlowManager import ApiFlowManager
-from main.apps.metadata_mgt.actors.ApiFlowStepManager import ApiFlowStepManager
-from main.apps.metadata_mgt.actors.FieldManager import FieldManager
+# from main.apps.metadata_mgt.actors.ScenarioManager import ScenarioManager
+# from main.apps.metadata_mgt.actors.ApiFlowManager import ApiFlowManager
+# from main.apps.metadata_mgt.actors.ApiFlowStepManager import ApiFlowStepManager
+# from main.apps.metadata_mgt.actors.FieldManager import FieldManager
 
 urlpatterns = [
     path("metadata_mgt/UserManager/create_user",UserManager.create_user,name='create_user'),
