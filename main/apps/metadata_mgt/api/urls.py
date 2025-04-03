@@ -31,29 +31,29 @@ urlpatterns = [
     # ------------------------------------------------------------------------
     # 新增 - ScenarioManager
     # ------------------------------------------------------------------------
-    path('metadata_mgt/ScenarioManager/create_scenario', ScenarioManager.create_scenario, name='create_scenario'),
-    path('metadata_mgt/ScenarioManager/get_scenario_list', ScenarioManager.get_scenario_list, name='get_scenario_list'),
-    path('metadata_mgt/ScenarioManager/get_scenario', ScenarioManager.get_scenario, name='get_scenario'),
-    path('metadata_mgt/ScenarioManager/update_scenario', ScenarioManager.update_scenario, name='update_scenario'),
-    path('metadata_mgt/ScenarioManager/delete_scenario', ScenarioManager.delete_scenario, name='delete_scenario'),
-    path('metadata_mgt/ScenarioManager/get_scenario_details', ScenarioManager.get_scenario_details, name='get_scenario_details'),
+    # path('metadata_mgt/ScenarioManager/create_scenario', ScenarioManager.create_scenario, name='create_scenario'),
+    # path('metadata_mgt/ScenarioManager/get_scenario_list', ScenarioManager.get_scenario_list, name='get_scenario_list'),
+    # path('metadata_mgt/ScenarioManager/get_scenario', ScenarioManager.get_scenario, name='get_scenario'),
+    # path('metadata_mgt/ScenarioManager/update_scenario', ScenarioManager.update_scenario, name='update_scenario'),
+    # path('metadata_mgt/ScenarioManager/delete_scenario', ScenarioManager.delete_scenario, name='delete_scenario'),
+    # path('metadata_mgt/ScenarioManager/get_scenario_details', ScenarioManager.get_scenario_details, name='get_scenario_details'),
     
     # ------------------------------------------------------------------------
     # 新增 - ApiFlowManager
     # ------------------------------------------------------------------------
-    path('metadata_mgt/ApiFlowManager/create_api_flow', ApiFlowManager.create_api_flow, name='create_api_flow'),
-    path('metadata_mgt/ApiFlowManager/get_api_flow_list', ApiFlowManager.get_api_flow_list, name='get_api_flow_list'),
-    path('metadata_mgt/ApiFlowManager/get_api_flow', ApiFlowManager.get_api_flow, name='get_api_flow'),
-    path('metadata_mgt/ApiFlowManager/update_api_flow', ApiFlowManager.update_api_flow, name='update_api_flow'),
-    path('metadata_mgt/ApiFlowManager/delete_api_flow', ApiFlowManager.delete_api_flow, name='delete_api_flow'),
+    # path('metadata_mgt/ApiFlowManager/create_api_flow', ApiFlowManager.create_api_flow, name='create_api_flow'),
+    # path('metadata_mgt/ApiFlowManager/get_api_flow_list', ApiFlowManager.get_api_flow_list, name='get_api_flow_list'),
+    # path('metadata_mgt/ApiFlowManager/get_api_flow', ApiFlowManager.get_api_flow, name='get_api_flow'),
+    # path('metadata_mgt/ApiFlowManager/update_api_flow', ApiFlowManager.update_api_flow, name='update_api_flow'),
+    # path('metadata_mgt/ApiFlowManager/delete_api_flow', ApiFlowManager.delete_api_flow, name='delete_api_flow'),
 
     # ------------------------------------------------------------------------
     # 新增 - ApiFlowStepManager
     # ------------------------------------------------------------------------
-    path('metadata_mgt/ApiFlowStepManager/create_api_flow_step', ApiFlowStepManager.create_api_flow_step, name='create_api_flow_step'),
-    path('metadata_mgt/ApiFlowStepManager/get_api_flow_step_list', ApiFlowStepManager.get_api_flow_step_list, name='get_api_flow_step_list'),
-    path('metadata_mgt/ApiFlowStepManager/get_api_flow_step', ApiFlowStepManager.get_api_flow_step, name='get_api_flow_step'),
-    path('metadata_mgt/ApiFlowStepManager/update_api_flow_step', ApiFlowStepManager.update_api_flow_step, name='update_api_flow_step'),
-    path('metadata_mgt/ApiFlowStepManager/delete_api_flow_step', ApiFlowStepManager.delete_api_flow_step, name='delete_api_flow_step'),
-    path('metadata_mgt/FieldManager/create_field', FieldManager.create_field, name='create_field'),
+    # path('metadata_mgt/ApiFlowStepManager/create_api_flow_step', ApiFlowStepManager.create_api_flow_step, name='create_api_flow_step'),
+    # path('metadata_mgt/ApiFlowStepManager/get_api_flow_step_list', ApiFlowStepManager.get_api_flow_step_list, name='get_api_flow_step_list'),
+    # path('metadata_mgt/ApiFlowStepManager/get_api_flow_step', ApiFlowStepManager.get_api_flow_step, name='get_api_flow_step'),
+    # path('metadata_mgt/ApiFlowStepManager/update_api_flow_step', ApiFlowStepManager.update_api_flow_step, name='update_api_flow_step'),
+    # path('metadata_mgt/ApiFlowStepManager/delete_api_flow_step', ApiFlowStepManager.delete_api_flow_step, name='delete_api_flow_step'),
+    # path('metadata_mgt/FieldManager/create_field', FieldManager.create_field, name='create_field'),
 ]
