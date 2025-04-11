@@ -87,17 +87,13 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
             "parsed_data": any,       # 從 GPT 解析出的資料 (若成功，可自行定義為任何資料結構)
         }
     """
-    client = OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY", ""), 
-    )
-    # System Prompt：示範如何對 GPT 設定指令，如需產生 2D array 代表先後/並行子需求等
-    system_prompt = """ 
-        你是一個能解析中文多需求(命題)的助理, 能判斷哪些需求可並行(同時).
-        請用 2D陣列表示先後順序, 相同陣列表示並行.
-    """
+    # 建議在必要時把 user_prompt 帶入 payload["query"] 中 (目前示例寫死成 "text")
+    # 也可依實際需求調整：payload["inputs"] 等欄位
+    api_key = os.getenv("DIFY_API_KEY", "")
+    bearer = "Bearer "+api_key
 
     headers = {
-        "Authorization": "Bearer app-NUZaDpmFR64rrTUG92dYBLVl",
+        "Authorization": bearer,
         "Content-Type": "application/json"
     }
 
