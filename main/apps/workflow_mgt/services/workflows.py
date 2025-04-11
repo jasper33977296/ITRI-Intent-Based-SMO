@@ -89,9 +89,11 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
     """
     # 建議在必要時把 user_prompt 帶入 payload["query"] 中 (目前示例寫死成 "text")
     # 也可依實際需求調整：payload["inputs"] 等欄位
+    api_key = os.getenv("DIFY_API_KEY", "")
+    bearer = "Bearer "+api_key
 
     headers = {
-        "Authorization": "Bearer app-NUZaDpmFR64rrTUG92dYBLVl",
+        "Authorization": bearer,
         "Content-Type": "application/json"
     }
 
