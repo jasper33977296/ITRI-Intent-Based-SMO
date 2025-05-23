@@ -2,7 +2,7 @@ import os
 import json
 import requests
 from openai import OpenAI
-
+from main.apps.metadata_mgt.services.ConversationController import ConversationController
 
 def text_analysis(user_prompt):
     """
@@ -97,16 +97,18 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
         "Content-Type": "application/json"
     }
 
+    result = ConversationController.get_dify_conversation_id(conversation_uid)
+    dify_conversation_id = result.get("data", "")
+
     payload = {
-        "query": user_prompt,  
-        "inputs": { "conversation_uid":conversation_uid},
+        "query": user_prompt,
+        "inputs": {"conversation_uid": conversation_uid},
         "response_mode": "streaming",
-        "user": "test_user6",
-        "conversation_id":"",
+        "user": "test_user1",
+        "conversation_id": dify_conversation_id,
         "files": [],
         "auto_generate_name": True
     }
-
     workflow_finished_data = None
     ans_text = ""
     raw_response_data = []
@@ -139,6 +141,8 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
 
         # 3. 整理解析結果
         if workflow_finished_data:
+            dify_conversation_id = workflow_finished_data.get("conversation_id", "")
+            ConversationController.update_dify_conversation_id(conversation_uid=conversation_uid, dify_conversation_id=dify_conversation_id)
             ans_text = (
                 workflow_finished_data
                 .get("data", {})
