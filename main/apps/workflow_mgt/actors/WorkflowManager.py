@@ -116,7 +116,7 @@ class WorkflowManager:
             # (1) 檢查必填欄位
             if isinstance(request.body, bytes):
                 data = request.body.decode('utf-8', errors='replace')
-                
+                print(data)
             else:
                 data = request.body
 
@@ -137,7 +137,6 @@ class WorkflowManager:
 
             #     根據 workflow_status 進行不同處理
             #     以下僅示範可能的分支，請依實際需求調整
-
             payload2 = {
                 "type":"broker_message",
                 "conversation_uid":conversation_uid,
