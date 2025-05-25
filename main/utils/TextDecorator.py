@@ -12,10 +12,10 @@ def text_decorator(role: str):
         @wraps(func)
         async def wrapper(self, *args, **kwargs):
             """
-            self: Prosumer 或任意 AsyncWebsocketConsumer。
+            self: Broker 或任意 AsyncWebsocketConsumer。
             - self.conversation_uid: 連線時取得的對話 ID
             - receive(text_data=...): 前端傳來的 JSON 字串
-            - broker_message(event=...): broker 廣播的事件
+            - broker_message(event=...): Producer 廣播的事件
             """
             conversation_uid = getattr(self, "conversation_uid", None)
             # 若無 conversation_uid，不做任何事或自行處理
@@ -34,9 +34,7 @@ def text_decorator(role: str):
                 if text_data:
                     try:
                         data = json.loads(text_data)
-                        # 假設前端傳 { "text": { "text_content": [...] } }
-                        # 如果前端的 key 不同，例如 "text_data" 或 "payload"，
-                        # 請自行修改這裡的 get("text")
+                        # receive(text_data=...)，text_data = { ..., "text": { "text_content": [...] } }
                         text_dict = data.get("text", {})
                     except Exception:
                         pass  # 忽略 JSON 解析失敗
