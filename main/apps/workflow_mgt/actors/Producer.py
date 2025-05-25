@@ -17,13 +17,13 @@ class Producer:
     def dispatch_topic(request):
         """
         流程:
-          1) 檢查 payload (必填欄位 event_type, conversation_uid, text)
+          1) 檢查 payload (必填欄位 conversation_uid, text_content)
           2) 使用 channel_layer.group_send 將訊息推送給 Broker 
         """
         try:
             # (1) 檢查必填欄位
             payload = json.loads(request.body)
-            required_fields = ["event_type", "conversation_uid", "text"]
+            required_fields = ["conversation_uid", "text_content"]
             missing_fields = [f for f in required_fields if f not in payload]
             if missing_fields:
                 return JsonResponse({
