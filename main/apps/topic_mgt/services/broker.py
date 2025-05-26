@@ -60,34 +60,3 @@ class Broker:
         """
         key = self._topic_key(conversation_uid)
         return self._redis.exists(key) == 1
-
-    # def get_subscribers(self, conversation_uid: str) -> set[str]:
-    #     """
-    #     取得對應 conversation_uid 的所有訂閱者 group_name。
-    #     Redis 傳回的原始資料是 bytes，需要 decode。
-    #     """
-    #     key = self._topic_key(conversation_uid)
-    #     subscriber_bytes_set = self._redis.smembers(key)
-    #     return {sub.decode("utf-8") for sub in subscriber_bytes_set}
-
-
-    # async def publish(self, conversation_uid: str, event_type: str, payload: dict) -> None:
-    #     """
-    #     透過 Django Channels 的 group_send，將事件廣播給所有訂閱該 conversation_uid 的組。
-
-    #     :param conversation_uid: 話題 (Topic) 的唯一識別
-    #     :param event_type: 事件類型 (用於 Prosumer 端的邏輯判斷)
-    #     :param payload: 傳遞的資料內容 (dict)
-    #     """
-    #     channel_layer = get_channel_layer()
-    #     subscribers = self.get_subscribers(conversation_uid)
-
-    #     for group_name in subscribers:
-    #         await channel_layer.group_send(
-    #             group_name,
-    #             {
-    #                 "type": "broker_message",  # Prosumer 端 handler: broker_message()
-    #                 "event_type": event_type,
-    #                 "payload": payload
-    #             }
-    #         )
