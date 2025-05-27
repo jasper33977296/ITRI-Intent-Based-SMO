@@ -43,7 +43,18 @@ class WorkflowManager:
 
             # (2) 呼叫 dify 執行工作流
             result = dify_execute_workflow(conversation_uid, user_content)
-            return 
+            if not result or "parsed_data" not in result:
+                return JsonResponse({
+                    "status_code": 502,
+                    "message": "Failed execute workflow."
+                }, status=502)
+            text_data = result.get("parsed_data","")
+
+            return JsonResponse({
+                "status_code": 200,
+                "message": "Success execute workflow"
+            })
+
         except Exception as e:
             return JsonResponse({
                 "status_code": 500,
