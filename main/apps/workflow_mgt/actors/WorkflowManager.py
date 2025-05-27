@@ -43,13 +43,7 @@ class WorkflowManager:
 
             # (2) 呼叫 dify 執行工作流
             result = dify_execute_workflow(conversation_uid, user_content)
-            text_data = result.get("parsed_data","")
-
-            return JsonResponse({
-                "conversation_uid": conversation_uid,
-                "text_content": text_data
-            })
-
+            return 
         except Exception as e:
             return JsonResponse({
                 "status_code": 500,

@@ -112,11 +112,11 @@ class Broker(AsyncWebsocketConsumer):
         await self.accept()
         self.broker = ServiceBroker()
 
-        # 3) 驗證 topic 是否已註冊
-        exists = self.broker.topic_exists(self.conversation_uid)
-        if not exists: 
-            await self.close(code=4003, reason="conversation_uid not exist.")
-            return
+        # # 3) 驗證 topic 是否已註冊
+        # exists = self.broker.topic_exists(self.conversation_uid)
+        # if not exists: 
+        #     await self.close(code=4003, reason="conversation_uid not exist.")
+        #     return
     
         # 4) 訂閱 topic
         self.broker.subscribe(self.conversation_uid, self.group_name)
@@ -145,5 +145,15 @@ class Broker(AsyncWebsocketConsumer):
     @text_decorator(role="llm")
     async def broker_message(self, event):
         """接收 Producer.dispatch_topic 轉來的訊息並推播給 WS Client"""
-        await self.send(text_data=json.dumps(event["payload"]))
+        # await self.send(text_data=json.dumps(event["payload"]))
+        payload = event["payload"]
+
+        # 若原本 payload 可能是字串，先嘗試轉成 dict
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+
+        # 合併 role
+        payload_with_role = {**payload, "role": "llm"}
+
+        await self.send(text_data=json.dumps(payload_with_role))
  
