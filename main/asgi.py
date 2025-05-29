@@ -9,9 +9,10 @@ https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
 
 import os
 import django
-from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.routing import ProtocolTypeRouter, URLRouter, ChannelNameRouter
 from django.core.asgi import get_asgi_application
 from main.routing import websocket_urlpatterns
+from main.apps.workflow_mgt.actors.Consumer import Consumer
 
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main.settings')
@@ -22,4 +23,7 @@ application = ProtocolTypeRouter({
     "http": get_asgi_application(),
     # WebSocket 協定 → 交給 Channels 路由
     "websocket": URLRouter(websocket_urlpatterns),
+    "channel": ChannelNameRouter({
+        "consumer": Consumer.as_asgi(),
+    }),
 })

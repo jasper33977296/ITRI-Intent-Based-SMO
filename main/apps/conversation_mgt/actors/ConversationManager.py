@@ -104,11 +104,11 @@ class ConversationManager:
                 resp_topic = json_request(
                     module="topic_mgt",
                     actor="TopicManager",
-                    function="init_topic",
+                    function="create_topic",
                     payload=topic_payload,
                 )
                 topic_data = resp_topic.json()
-                if not topic_data.get("status", False):
+                if not topic_data.get("status_code", 201):
                     return JsonResponse(topic_data, status=topic_data.get("status_code", 400))
             except Exception as e:
                 return JsonResponse({
