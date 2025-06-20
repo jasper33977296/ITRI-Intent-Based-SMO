@@ -46,7 +46,9 @@ def generate_log_content(log_level, status_code, source_type='system', func=None
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    if isinstance(func, types.FunctionType):
+    if isinstance(func, str):
+        log_str = f"[{log_level}] [{status_code}] [{source_type}]: {func} [message]: {message}"
+    else:
         module = func.__module__.split('.')[-3] if func else "Unknown"
         actor = func.__module__.split('.')[-1] if func else "Unknown"
         func_name = func.__name__ if func else "Unknown"
@@ -56,13 +58,7 @@ def generate_log_content(log_level, status_code, source_type='system', func=None
 
         log_str = f"[{log_level}] [{status_code}] [{source_type}]: {module}/ {actor}/ {func_name} [message]: {message}"
 
-    elif isinstance(func, str):
-        log_str = f"[{log_level}] [{status_code}] [{source_type}]: {func} [message]: {message}"
-    else:
-        module = actor = func_name = "Unknown"
-        log_str = f"[{log_level}] [{status_code}] [{source_type}]: {module}/ {actor}/ {func_name} [message]: {message}"
-
-    return f"{timestamp} - {log_str}\n"
+    return f"{timestamp} - {log_str}\n" 
 
 
 def log_trigger():
