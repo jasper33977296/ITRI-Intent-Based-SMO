@@ -3,6 +3,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 from main.utils.TextDecorator import text_decorator
 from main.utils.ApiKit import json_request_async
+from main.utils.logger import async_log_writer
 
 class Prosumer(AsyncWebsocketConsumer):
     """
@@ -14,21 +15,41 @@ class Prosumer(AsyncWebsocketConsumer):
     """
 
     async def connect(self):
-        self.conversation_uid = self.scope["url_route"]["kwargs"].get("conversation_uid")
-        self.group_name = f"conv_{self.conversation_uid}"
+        try:
+            self.conversation_uid = self.scope["url_route"]["kwargs"].get("conversation_uid")
+            self.group_name = f"conv_{self.conversation_uid}"
 
-        # 1) 驗證 conversation 是否存在 (略) ...
-        #    如果不存在 => await self.close(code=400)
+            # 1) 驗證 conversation 是否存在 (略) ...
+            #    如果不存在 => await self.close(code=400)
 
-        # 2) 向 Broker 訂閱 (略) ...
-        #    如果訂閱失敗 => await self.close(code=400)
+            # 2) 向 Broker 訂閱 (略) ...
+            #    如果訂閱失敗 => await self.close(code=400)
 
-        # 3) 加入 Django Channels 群組
-        await self.channel_layer.group_add(
-            self.group_name,
-            self.channel_name
-        )
-        await self.accept()
+            # 3) 加入 Django Channels 群組
+            await self.channel_layer.group_add(
+                self.group_name,
+                self.channel_name
+            )
+            await self.accept()
+
+            await async_log_writer(
+                log_level="INFO",
+                status_code="201",
+                source_type="Websocket",
+                func=self.receive,
+                args=[self],
+                message="WebSocket connect success"
+            )
+
+        except Exception as e:
+            await async_log_writer(
+                log_level="ERROR",
+                status_code="500",
+                source_type="Websocket",
+                func=self.receive,
+                args=[self],
+                message=f"WebSocket connect Error: {str(e)}"
+            )
 
     async def disconnect(self, code):
         # 取消訂閱 Broker (略)
@@ -36,6 +57,14 @@ class Prosumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_discard(
             self.group_name,
             self.channel_name
+        )
+        await async_log_writer(
+            log_level="INFO",
+            status_code="200",
+            source_type="Websocket",
+            func=self.receive,
+            args=[self],
+            message="WebSocket disconnect success"
         )
 
     @text_decorator()
@@ -90,8 +119,25 @@ class Prosumer(AsyncWebsocketConsumer):
                 # # **重點：使用 group_send 廣播給 group_name 裡的所有 Consumer**
                 # await self.group_send(payload)
 
+                await async_log_writer(
+                    log_level="INFO",
+                    status_code="200",
+                    source_type="Websocket",
+                    func=self.receive,
+                    args=[self],
+                    message="WebSocket receive success"
+                )
+
             except Exception as e:
                 print(f"[Prosumer] Failed to call execute_workflow API: {e}")
+                await async_log_writer(
+                    log_level="INFO",
+                    status_code="200",
+                    source_type="Websocket",
+                    func=self.receive,
+                    args=[self],
+                    message=f"WebSocket failed to call execute_workflow API: {e}"
+                )
 
 
     async def group_send(self,payload):
@@ -104,6 +150,14 @@ class Prosumer(AsyncWebsocketConsumer):
                         "payload": {"text": payload["text"]}
                     }
                 )    
+        await async_log_writer(
+            log_level="INFO",
+            status_code="200",
+            source_type="Websocket",
+            func=self.receive,
+            args=[self],
+            message="WebSocket group_send success"
+        )
 
     @text_decorator()
     async def broker_message(self, event):
@@ -124,3 +178,12 @@ class Prosumer(AsyncWebsocketConsumer):
             "conversation_uid": conversation_uid,
             "text": text_body
         }, ensure_ascii=False))
+
+        await async_log_writer(
+            log_level="INFO",
+            status_code="200",
+            source_type="Websocket",
+            func=self.receive,
+            args=[self],
+            message="WebSocket broker_message success"
+        )
