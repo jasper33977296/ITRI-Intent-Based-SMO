@@ -36,7 +36,7 @@ class Prosumer(AsyncWebsocketConsumer):
                 log_level="INFO",
                 status_code="201",
                 source_type="Websocket",
-                func=self.receive,
+                func=self.connect,
                 args=[self],
                 message="WebSocket connect success"
             )
@@ -46,7 +46,7 @@ class Prosumer(AsyncWebsocketConsumer):
                 log_level="ERROR",
                 status_code="500",
                 source_type="Websocket",
-                func=self.receive,
+                func=self.connect,
                 args=[self],
                 message=f"WebSocket connect Error: {str(e)}"
             )
@@ -62,7 +62,7 @@ class Prosumer(AsyncWebsocketConsumer):
             log_level="INFO",
             status_code="200",
             source_type="Websocket",
-            func=self.receive,
+            func=self.disconnect,
             args=[self],
             message="WebSocket disconnect success"
         )
@@ -154,7 +154,7 @@ class Prosumer(AsyncWebsocketConsumer):
             log_level="INFO",
             status_code="200",
             source_type="Websocket",
-            func=self.receive,
+            func=self.group_send,
             args=[self],
             message="WebSocket group_send success"
         )
@@ -183,7 +183,7 @@ class Prosumer(AsyncWebsocketConsumer):
             log_level="INFO",
             status_code="200",
             source_type="Websocket",
-            func=self.receive,
+            func=self.broker_message,
             args=[self],
             message="WebSocket broker_message success"
         )
