@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import base64
 from django.http import JsonResponse
@@ -64,6 +65,17 @@ class TextManager:
                         "status": False,
                         "message": "Each element in 'text_content' must have 'type' and 'content'"
                     }, status=400)
+                if isinstance(item.get('content'), str):
+                    # 定義要尋找的樣式 (pattern)
+                    # - \s* : 匹配任何空白字元 (包含空格、tab、換行符)
+                    # - \{ and \}  : 匹配字面上的大括號 { 和 }
+                    # - \"reason\" : 匹配字面上的 "reason"
+                    # - \".*?\"   : 以非貪婪模式(*)匹配引號內的任何文字，也就是 reason 的值
+                    # - re.DOTALL : 使 . 也能匹配換行符，增加匹配的穩健性
+                    pattern = re.compile(r'\s*\{\s*"reason"\s*:\s*".*?"\s*\}', re.DOTALL)
+                    
+                    # 使用 re.sub() 將匹配到的樣式替換成空字串
+                    item['content'] = pattern.sub('', item['content'])
 
             # (2) 先呼叫 metadata_mgt 建立 text metadata
             meta_payload = {"conversation_uid": conversation_uid}
