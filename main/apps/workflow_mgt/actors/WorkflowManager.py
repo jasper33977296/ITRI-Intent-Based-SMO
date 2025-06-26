@@ -6,9 +6,6 @@ from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from main.utils.logger import log_trigger, log_writer
 
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
-
 from main.apps.workflow_mgt.services.workflows import dify_single_intent_workflow
 from main.utils.ApiKit import json_request
 
@@ -71,6 +68,7 @@ class WorkflowManager:
     
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def human_in_the_loop(request):
         """
         流程:
@@ -193,3 +191,50 @@ class WorkflowManager:
                 "status_code": 500,
                 "message": str(e)
             }, status=500)
+
+    @csrf_exempt
+    @require_http_methods(["POST"])
+    @log_trigger()
+    def logger_human_in_the_loop(request):
+        """
+        流程:
+          1) 檢查 payload (必填欄位 conversation_uid, text_uid, text_content)
+          2) 呼叫 metadata_mgt API 取得該 conversation 的 workflow step & workflow status
+          3) 根據 workflow status 處理:
+             - 若 status="start": 創建一個新的 text
+             - 若 status="running": 加入訊息到該 text
+             - 若 status="finish": 更新 workflow status 為 finish (或其他收尾處理)
+          4) 透過 Prosumer 廣播給前端
+        """
+        try:
+            payload = json.loads(request.body)
+
+            # 必填欄位檢查
+            required_fields = ["status_code","message"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
+                return JsonResponse({
+                    "status_code": 400,
+                    "status": False,
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
+                }, status=400)
+
+            log_writer(
+                log_level="ERROR",
+                status_code=payload["status_code"],
+                source_type="dify engine",
+                func="workflow_mgt/ WorkflowManager/ logger_human_in_the_loop",
+                args=[payload],
+                message=payload["message"]
+            )
+
+            # 最後回傳 HTTP 結果
+            return JsonResponse({
+                "status": True,
+                "message": "Logger Human in the loop processed successfully",
+            }, status=200)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+        except Exception as e:
+            return JsonResponse({"status": False, "message": str(e)}, status=500)
