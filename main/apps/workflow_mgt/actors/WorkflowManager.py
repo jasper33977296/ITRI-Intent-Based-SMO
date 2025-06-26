@@ -8,9 +8,6 @@ from django.http import JsonResponse
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-
-from main.apps.workflow_mgt.actors.Prosumer import Prosumer
-
 from main.apps.workflow_mgt.services.workflows import dify_single_intent_workflow
 from main.utils.ApiKit import json_request
 

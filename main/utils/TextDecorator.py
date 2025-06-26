@@ -2,7 +2,7 @@ import json
 from functools import wraps
 from main.utils.ApiKit import json_request_async
 
-def text_decorator():
+def text_decorator(role: str):
     """
     建立 text 的裝飾器，可依據接收到的 event_type
     (在 receive 方法中) 動態判斷角色 ("user"/"llm")。
