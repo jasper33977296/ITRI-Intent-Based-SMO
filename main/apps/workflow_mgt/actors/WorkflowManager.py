@@ -1,8 +1,14 @@
+import os
 import json
+import base64
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
-from main.apps.workflow_mgt.services.workflows import dify_execute_workflow
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+from main.apps.workflow_mgt.services.workflows import dify_single_intent_workflow
 from main.utils.ApiKit import json_request
 
 class WorkflowManager:
@@ -42,7 +48,7 @@ class WorkflowManager:
                 user_content = "" # 或自行定義預設行為 
 
             # (2) 呼叫 dify 執行工作流
-            result = dify_execute_workflow(conversation_uid, user_content)
+            result = dify_single_intent_workflow(conversation_uid, user_content)
             if not result or "parsed_data" not in result:
                 return JsonResponse({
                     "status_code": 502,
@@ -163,89 +169,24 @@ class WorkflowManager:
             # 檢查後端回傳是否成功 ==還需要更改==
             if not meta_data.get("status", False):
                 return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
-            
+
+            # 從回傳資料中取出 step, status
+            workflow_info = meta_data.get("data", {})
+            workflow_step = workflow_info.get("workflow_step", "demo")
+
+            # (3) 根據 step 呼叫對應函式
+            result = dify_single_intent_workflow(conversation_uid=conversation_uid,user_prompt=content)
+
+            text_data = result.get("parsed_data","")
+
             return JsonResponse({
-                "status_code": 200,
-                "message": "Workflow 更新成功"
-            }, status=200)
+                    "event_type": workflow_step,
+                    "conversation_uid": conversation_uid,
+                    "text": text_data
+            })
 
         except Exception as e:
             return JsonResponse({
                 "status_code": 500,
                 "message": str(e)
             }, status=500)
-
-    def require_scenario_mapping(request):
-        """
-        對 conversation 進行情境對應 (scenario mapping)
-        Input JSON: {
-            "conversation_uid": "..."
-        }
-        """
-        conversation_uid = request.POST.get("conversation_uid")
-        if not conversation_uid:
-            return JsonResponse({"status":"error","message":"No conversation_uid provided."}, status=400)
-
-        # 假設做一些情境對應的邏輯
-        # scenario_result = do_scenario_mapping(...)
-
-        # broadcast_to_prosumer(conversation_uid, "scenario_mapping", {"result": scenario_result})
-        return JsonResponse({"status":"ok","message":"Scenario mapping requested."})
-
-    def scenario_apiflow_mapping(request):
-        """
-        對 conversation 進行 API Flow 情境對應
-        Input JSON: {
-            "conversation_uid": "..."
-        }
-        """
-        conversation_uid = request.POST.get("conversation_uid")
-        if not conversation_uid:
-            return JsonResponse({"status":"error","message":"No conversation_uid provided."}, status=400)
-
-        # do_something...
-        # broadcast_to_prosumer(conversation_uid, "apiflow_mapping", {...})
-
-        return JsonResponse({"status":"ok","message":"Scenario APIFlow mapping requested."})
-
-
-    def apiflow_test(request):
-        """
-        測試指定 conversation 的 API Flow
-        Input JSON:
-        {
-            "conversation_uid": "...",
-            "test_params": {...}
-        }
-        """
-        conversation_uid = request.POST.get("conversation_uid")
-        test_params = request.POST.get("test_params", {})
-
-        if not conversation_uid:
-            return JsonResponse({"status":"error","message":"No conversation_uid provided."}, status=400)
-
-        # do_apiflow_test...
-        # broadcast_to_prosumer(conversation_uid, "apiflow_test", {...})
-
-        return JsonResponse({"status":"ok","message":"APIFlow test requested."})
-
-
-    def apiflow_execute(request):
-        """
-        執行指定 conversation 的 API Flow
-        Input JSON:
-        {
-            "conversation_uid": "...",
-            "execute_params": {...}
-        }
-        """
-        conversation_uid = request.POST.get("conversation_uid")
-        execute_params = request.POST.get("execute_params", {})
-
-        if not conversation_uid:
-            return JsonResponse({"status":"error","message":"No conversation_uid provided."}, status=400)
-
-        # do_apiflow_execute...
-        # broadcast_to_prosumer(conversation_uid, "apiflow_execute", {...})
-
-        return JsonResponse({"status":"ok","message":"APIFlow execute requested."})

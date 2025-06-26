@@ -1,4 +1,5 @@
 import os
+import re
 import csv
 import json
 import shutil
@@ -117,3 +118,38 @@ def delete_file(file_path: str):
     """
     if os.path.exists(file_path):
         os.remove(file_path)
+
+def _remove_reason_json(content: str) -> str:
+    """
+    從字串中移除 {"reason": ...} 樣式的 JSON 物件。
+    如果輸入的不是字串，則直接回傳原內容。
+    """
+    if not isinstance(content, str):
+        return content
+
+    # 定義要尋找的樣式 (pattern)
+    pattern = re.compile(r'\s*\{\s*"reason"\s*:\s*".*?"\s*\}', re.DOTALL)
+    
+    # 使用 re.sub() 將匹配到的樣式替換成空字串後，再去除前後多餘的空白
+    return pattern.sub('', content).strip()
+
+def remove_reason_json(data: dict):
+    """
+    解析傳入的物件，並清理 text_content 中每個元素的 content 欄位，
+    移除 reason JSON 字串。
+
+    Args:
+        data (dict): 包含 role 和 text_content 的物件。
+
+    Returns:
+        dict: content 欄位已被清理乾淨的物件。
+    """
+    if 'text_content' in data and isinstance(data['text_content'], list):
+        # 遍歷 text_content 陣列中的每一個項目 (item)
+        for item in data['text_content']:
+            # 確保項目是一個 dict 且含有 'content' 欄位
+            if isinstance(item, dict) and 'content' in item:
+                # 使用輔助函式來清理 content 字串，並更新回去
+                item['content'] = _remove_reason_json(item.get('content'))
+    
+    return data

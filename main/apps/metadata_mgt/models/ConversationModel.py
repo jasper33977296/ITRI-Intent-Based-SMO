@@ -9,6 +9,7 @@ class Conversation(models.Model):
     conversation_name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)  
+    dify_conversation_id = models.CharField(max_length=255,default="")
 
     # f_user_uid 為外鍵，對應到 User Model 的 user_uid 欄位
     f_user_uid = models.ForeignKey(
@@ -17,7 +18,7 @@ class Conversation(models.Model):
         to_field='user_uid',  # 指定要關聯到 User Model 中的 user_uid 欄位
         db_column='f_user_uid'  # 指定在本 Model 所對應的資料庫欄位名稱
     )
-
+    
     class Meta:
         db_table = 'conversation'
 

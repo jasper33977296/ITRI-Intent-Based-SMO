@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from main.apps.topic_mgt.services.broker import Broker as ServiceBroker
 from django.http import JsonResponse
 from main.utils.ApiKit import json_request
+from main.utils.FileKit import remove_reason_json
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from main.utils.TextDecorator import text_decorator
@@ -155,5 +156,8 @@ class Broker(AsyncWebsocketConsumer):
         # 合併 role
         payload_with_role = {**payload, "role": "llm"}
 
+        # 移除 reason資訊
+        remove_reason_json(payload_with_role)
+        
         await self.send(text_data=json.dumps(payload_with_role))
  

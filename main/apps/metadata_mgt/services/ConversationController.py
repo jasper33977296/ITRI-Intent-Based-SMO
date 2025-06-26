@@ -200,3 +200,57 @@ class ConversationController:
                 "status": False,
                 "message": f"系統發生錯誤: {str(e)}"
             }
+        
+    @staticmethod
+    def get_dify_conversation_id(conversation_uid):
+        """
+        取得指定 Conversation 的 Dify Conversation ID
+        """
+        try:
+            conversation = Conversation.objects.get(conversation_uid=conversation_uid)
+            return {
+                "status_code": 200,
+                "status": True,
+                "message": "取得 Dify conversation ID 成功",
+                "data": conversation.dify_conversation_id
+            }
+        except Conversation.DoesNotExist:
+            return {
+                "status_code": 404,
+                "status": False,
+                "message": f"Can't find conversation_uid = {conversation_uid}"
+            }
+        except Exception as e:
+            return {
+                "status_code": 500,
+                "status": False,
+                "message": f"系統發生錯誤: {str(e)}"
+            }
+
+    @staticmethod
+    def update_dify_conversation_id(conversation_uid, dify_conversation_id):
+        """
+        更新指定 Conversation 的 Dify Conversation ID
+        """
+        try:
+            conversation = Conversation.objects.get(conversation_uid=conversation_uid)
+            conversation.dify_conversation_id = dify_conversation_id
+            conversation.save()
+
+            return {
+                "status_code": 200,
+                "status": True,
+                "message": "Update Dify conversation ID success"
+            }
+        except Conversation.DoesNotExist:
+            return {
+                "status_code": 404,
+                "status": False,
+                "message": f"Can't find conversation_uid = {conversation_uid}"
+            }
+        except Exception as e:
+            return {
+                "status_code": 500,
+                "status": False,
+                "message": f"系統發生錯誤: {str(e)}"
+            }

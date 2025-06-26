@@ -19,6 +19,12 @@ debug_mode = os.environ.get('DEBUG')
 allowed_host = os.environ.get('ALLOWED_HOSTS')
 cors_allowed_origins=os.environ.get('CORS_ALLOWED_ORIGINS')
 
+# Mongo
+# mongo_db_name = os.environ.get('MONGO_DATABASE_NAME')
+# mongo_host = os.environ.get('MONGO_HOST')
+# mongo_port = os.environ.get('MONGO_PORT')
+# mongo_user = os.environ.get('MONGO_USER')
+# mongo_password = os.environ.get('MONGO_PASSWORD')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -99,7 +105,7 @@ DATABASES = {
         'PASSWORD': os.environ.get('HTTP_POSTGRES_DATABASE_PASSWORD'),
         'HOST': os.environ.get('HTTP_POSTGRES_DATABASE_HOST'),
         'PORT': os.environ.get('HTTP_POSTGRES_DATABASE_HOST_PORT')
-    }
+    },
 }
 
 REDIS_USER = os.getenv("HTTP_REDIS_DATABASE_HOST_USER", "")
