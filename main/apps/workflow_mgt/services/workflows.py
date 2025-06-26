@@ -3,6 +3,7 @@ import json
 import requests
 from openai import OpenAI
 from main.apps.metadata_mgt.services.ConversationController import ConversationController
+
 from main.utils.logger import log_writer
 
 def text_analysis(user_prompt):

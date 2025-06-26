@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install -r requirements/base.txt
+RUN pip install --no-cache-dir -r requirements/base.txt
 
 CMD ["sh", "-c", "python manage.py makemigrations && \
                   python manage.py migrate && \
