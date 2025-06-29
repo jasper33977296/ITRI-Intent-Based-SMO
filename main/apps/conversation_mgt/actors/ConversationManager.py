@@ -40,7 +40,7 @@ class ConversationManager:
             # 2) 呼叫 metadata_mgt API: 建立 conversation metadata, 並取得 conversation_uid
             meta_payload = {
                 "user_uid": user_uid,
-                "conversation_name": f"{uuid.uuid4()}"
+                "conversation_name": ''
             }
             try:
                 resp = json_request(

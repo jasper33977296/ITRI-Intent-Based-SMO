@@ -6,6 +6,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 
+from main.apps.conversation_mgt.services.ConversationKit import generate_conversation_title
+
 from main.utils.FileKit import (
     append_text_uid_to_csv,
     read_text_uids_from_csv,
@@ -24,18 +26,14 @@ class TextManager:
     def create_text(request):
         """
         建立一筆 text 資料 (可能含有多個段落或圖片)。
-        
+
         1) 檢查請求中的必填欄位（conversation_uid, text_content, role）。
-           - text_content 必須是 list，每個元素都需包含 "type" 與 "content"。
+        - text_content 必須是 list，每個元素都需包含 "type" 與 "content"。
         2) 呼叫 metadata_mgt 的 TextManager.create_text_metadata 建立 text metadata，
-           從回傳結果中取得 text_uid、user_uid、text_path 等資訊。
-        3) 如果 text_content 裡有 type="image" 的項目：
-           - 依序呼叫 metadata_mgt 的 ImageManager.create_image_metadata 建立 image metadata。
-           - 解析 base64 後存成 images/{text_uid}/{image_uid}.png。
-           - 將該項目的 content 從 base64 編碼置換為 image_uid（未來讀取時再以 image_uid 找圖）。
-        4) 將該 text_uid 寫入 conversations/{user_uid}/{conversation_uid}.csv (FileKit.append_text_uid_to_csv)。
-        5) 建立 texts/{conversation_uid}/{text_uid}.json，內含 role、text_content (已替換掉 base64)。
-        6) 回傳包含 text_uid 等資訊的成功訊息。
+        從回傳結果中取得 text_uid、user_uid、text_path 等資訊。
+        3) 將該 text_uid 寫入 conversations/{user_uid}/{conversation_uid}.csv。
+        4) 建立 texts/{conversation_uid}/{text_uid}.json，內含 role、text_content (已替換掉 base64)。
+        5) 回傳包含 text_uid 等資訊的成功訊息。
         """
         try:
             payload = json.loads(request.body)
@@ -55,8 +53,7 @@ class TextManager:
 
             if not isinstance(text_array, list):
                 return JsonResponse({
-                    "status": False,
-                    "message": "Field 'text_content' must be a list"
+                    "status": False, "message": "Field 'text_content' must be a list"
                 }, status=400)
 
             for item in text_array:
@@ -65,125 +62,101 @@ class TextManager:
                         "status": False,
                         "message": "Each element in 'text_content' must have 'type' and 'content'"
                     }, status=400)
+
+            # 提前獲取對話 metadata，用於後續判斷
+            try:
+                conv_meta_resp = json_request(
+                    module="metadata_mgt",
+                    actor="ConversationManager",
+                    function="get_conversation_metadata",
+                    payload={"conversation_uid": conversation_uid},
+                )
+                conv_meta_data = conv_meta_resp.json()
+            except Exception as e:
+                return JsonResponse({
+                    "status": False,
+                    "message": f"Fail to call metadata_mgt (get_conversation_metadata): {str(e)}"
+                }, status=502)
+
+            if not conv_meta_data.get("status", False):
+                return JsonResponse(conv_meta_data, status=conv_meta_data.get("status_code", 400))
+            # **[優化]** 將標題生成邏輯移出迴圈，僅在需要時執行一次
+
+            conversation_name = conv_meta_data.get("data","").get("conversation_name","")
+
+            if conversation_name == "":
+                user_prompt_for_title = ""
+                for item in text_array:
+                    if item.get("type") == "message" and isinstance(item.get("content"), str):
+                        user_prompt_for_title = item['content']
+                        
+                        try:
+                            conversation_name = generate_conversation_title(user_prompt=user_prompt_for_title)
+
+                            json_request(
+                                module="metadata_mgt",
+                                actor="ConversationManager",
+                                function="update_conversation_name",
+                                payload={
+                                    "conversation_uid": conversation_uid,
+                                    "conversation_name": conversation_name
+                                },
+                            )
+                            # 這裡可以選擇性地檢查更新是否成功，若失敗可記錄 log
+                        except Exception as e:
+                            # 即使更新標題失敗，主流程可能仍需繼續，故僅記錄警告
+                            print(f"Warning: Failed to update conversation name for {conversation_uid}: {e}")
+                        break  # 找到第一個就足夠
+
+            # **[優化]** 獨立迴圈，專門處理內容清理
+            pattern = re.compile(r'\s*\{\s*"reason"\s*:\s*".*?"\s*\}', re.DOTALL)
+            for item in text_array:
                 if isinstance(item.get('content'), str):
-                    # 定義要尋找的樣式 (pattern)
-                    # - \s* : 匹配任何空白字元 (包含空格、tab、換行符)
-                    # - \{ and \}  : 匹配字面上的大括號 { 和 }
-                    # - \"reason\" : 匹配字面上的 "reason"
-                    # - \".*?\"   : 以非貪婪模式(*)匹配引號內的任何文字，也就是 reason 的值
-                    # - re.DOTALL : 使 . 也能匹配換行符，增加匹配的穩健性
-                    pattern = re.compile(r'\s*\{\s*"reason"\s*:\s*".*?"\s*\}', re.DOTALL)
-                    
-                    # 使用 re.sub() 將匹配到的樣式替換成空字串
                     item['content'] = pattern.sub('', item['content'])
 
-            # (2) 先呼叫 metadata_mgt 建立 text metadata
-            meta_payload = {"conversation_uid": conversation_uid}
+            # (2) 呼叫 metadata_mgt 建立 text metadata
             try:
-                resp = json_request(
+                text_meta_resp = json_request(
                     module="metadata_mgt",
                     actor="TextManager",
                     function="create_text_metadata",
-                    payload=meta_payload,
+                    payload={"conversation_uid": conversation_uid},
                 )
-                meta_data = resp.json()
+                text_meta_data = text_meta_resp.json()
             except Exception as e:
                 return JsonResponse({
                     "status": False,
                     "message": f"Fail to call metadata_mgt (create_text_metadata): {str(e)}"
                 }, status=502)
 
-            if not meta_data.get("status", False):
-                # 後端若有回傳 status_code 以其為主，否則預設 400
-                return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
+            if not text_meta_data.get("status", False):
+                return JsonResponse(text_meta_data, status=text_meta_data.get("status_code", 400))
 
-            data_part = meta_data.get("data", {})
+            data_part = text_meta_data.get("data", {})
             text_uid = data_part.get("text_uid")
-            conversation_uid = data_part.get("conversation_uid")  # 後端回傳最新值
-            user_uid = data_part.get("user_uid")  # 假設後端會回傳 user_uid
-            text_path = data_part.get("text_path")  # e.g. "texts/{conversation_uid}/{text_uid}.json"
+            user_uid = data_part.get("user_uid")
+            text_path = data_part.get("text_path")
 
-            if not text_uid or not conversation_uid or not text_path or not user_uid:
+            if not all([text_uid, user_uid, text_path]):
                 return JsonResponse({
                     "status": False,
-                    "message": "Missing data in metadata response (need text_uid, conversation_uid, user_uid, text_path)"
-                }, status=400)
-
-            # 針對 text_content，若有圖片 (type="image")，需分別呼叫 create_image_metadata
-            # 並將 base64 內容寫到 images/{text_uid}/{image_uid}.png
-            # for item in text_array:
-            #     if item["type"] == "image":
-            #         # 呼叫 metadata_mgt -> ImageManager -> create_image_metadata
-            #         image_payload = {"text_uid": text_uid}
-            #         try:
-            #             img_resp = json_request(
-            #                 module="metadata_mgt",
-            #                 actor="ImageManager",
-            #                 function="create_image_metadata",
-            #                 payload=image_payload
-            #             )
-            #             img_data = img_resp.json()
-            #         except Exception as e:
-            #             return JsonResponse({
-            #                 "status": False,
-            #                 "message": f"Fail to call metadata_mgt (create_image_metadata): {str(e)}"
-            #             }, status=502)
-
-            #         if not img_data.get("status", False):
-            #             return JsonResponse(img_data, status=img_data.get("status_code", 400))
-
-            #         image_info = img_data.get("data", {})
-            #         image_uid = image_info.get("image_uid")
-            #         image_path = image_info.get("image_path")
-            #         if not image_uid or not image_path:
-            #             return JsonResponse({
-            #                 "status": False,
-            #                 "message": "Missing image_uid or image_path from create_image_metadata"
-            #             }, status=400)
-
-            #         # 解碼 base64
-            #         try:
-            #             image_binary = base64.b64decode(item["content"])
-            #         except Exception as e:
-            #             return JsonResponse({
-            #                 "status": False,
-            #                 "message": f"Invalid base64 image content: {str(e)}"
-            #             }, status=400)
-
-            #         # 寫入檔案 images/{text_uid}/{image_uid}.png
-            #         # 確保資料夾存在
-            #         directory = os.path.dirname(image_path)
-            #         if not os.path.exists(directory):
-            #             os.makedirs(directory, exist_ok=True)
-
-            #         try:
-            #             with open(image_path, "wb") as f:
-            #                 f.write(image_binary)
-            #         except Exception as e:
-            #             return JsonResponse({
-            #                 "status": False,
-            #                 "message": f"Failed to write image file: {str(e)}"
-            #             }, status=500)
-
-            #         # 將 content 改成 image_uid (以便之後 get_text_list 時再轉回 base64)
-            #         item["content"] = image_uid
+                    "message": "Missing critical data in metadata response (need text_uid, user_uid, text_path)"
+                }, status=500) # 使用 500，因為這是後端服務間的契約問題
 
             # (3) 將 text_uid 加到 conversations/{user_uid}/{conversation_uid}.csv
             conversation_dir = os.path.join("conversations", user_uid)
-            if not os.path.exists(conversation_dir):
-                os.makedirs(conversation_dir, exist_ok=True)
-
+            os.makedirs(conversation_dir, exist_ok=True)
             conversation_csv_path = os.path.join(conversation_dir, f"{conversation_uid}.csv")
             try:
                 append_text_uid_to_csv(conversation_csv_path, text_uid)
             except Exception as e:
+                # 考慮補償交易：若此步失敗，是否應刪除剛建立的 text metadata？
                 return JsonResponse({
                     "status": False,
                     "message": f"Failed to append text_uid to CSV: {str(e)}"
                 }, status=500)
 
-            # (4) 建立 JSON 檔 texts/{conversation_uid}/{text_uid}.json
-            # 
+            # (4) 建立 JSON 檔 texts/{...}/{text_uid}.json
             try:
                 create_json_file(text_path, {
                     "role": role,
@@ -207,6 +180,7 @@ class TextManager:
         except json.JSONDecodeError:
             return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
         except Exception as e:
+            # 捕捉所有其他未預期的錯誤
             return JsonResponse({"status": False, "message": str(e)}, status=500)
 
     @csrf_exempt
