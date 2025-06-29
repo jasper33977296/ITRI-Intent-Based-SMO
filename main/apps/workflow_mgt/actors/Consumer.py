@@ -1,5 +1,6 @@
 from channels.generic.websocket import AsyncConsumer
 from main.utils.ApiKit import  json_request
+from main.utils.logger import async_log_writer
 
 class Consumer(AsyncConsumer):
     async def send_message(self, event):
@@ -32,4 +33,14 @@ class Consumer(AsyncConsumer):
             function="execute_workflow",
             payload=workflow_payload,
         )
+
+        await async_log_writer(
+            log_level="INFO",
+            status_code="200",
+            source_type="Websocket",
+            func=self.send_message,
+            args=[self],
+            message="WebSocket send_message success"
+        )
+
         return

@@ -5,6 +5,7 @@ import base64
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from main.utils.logger import log_trigger
 
 from main.apps.conversation_mgt.services.ConversationKit import generate_conversation_title
 
@@ -23,6 +24,7 @@ class TextManager:
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def create_text(request):
         """
         建立一筆 text 資料 (可能含有多個段落或圖片)。
@@ -185,6 +187,7 @@ class TextManager:
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def get_text_list(request):
         """
         取得指定對話的所有 text 資料列表，流程如下：
@@ -328,6 +331,7 @@ class TextManager:
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def delete_text(request):
         """
         刪除指定 text，流程如下：

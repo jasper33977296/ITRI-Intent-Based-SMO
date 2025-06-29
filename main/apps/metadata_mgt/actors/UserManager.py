@@ -5,7 +5,7 @@ from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from main.utils.FileKit import delete_file, delete_folder
 from main.utils.ApiKit import json_request
-from main.utils.logger import log_trigger, log_writer
+from main.utils.logger import log_trigger
 from main.apps.metadata_mgt.services.UserController import UserController
 
 class UserManager:
@@ -15,8 +15,8 @@ class UserManager:
     """
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def hello_world(request):
         try:
             return JsonResponse({
@@ -33,8 +33,8 @@ class UserManager:
             }, status=500)
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def create_user(request):
         """
         建立新使用者。
@@ -77,8 +77,8 @@ class UserManager:
             }, status=500)
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def login_user(request):
         try:
             payload = json.loads(request.body)
@@ -116,8 +116,8 @@ class UserManager:
            
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def get_user(request):
         """
         取得使用者資訊。
@@ -154,8 +154,8 @@ class UserManager:
             }, status=500)
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def update_user(request):
         """
         更新使用者資訊。
@@ -195,8 +195,8 @@ class UserManager:
             }, status=500)
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def delete_user(request):
         """
         刪除使用者。

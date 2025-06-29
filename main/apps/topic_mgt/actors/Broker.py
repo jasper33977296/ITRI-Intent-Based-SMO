@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from main.utils.TextDecorator import text_decorator
 import json
+from main.utils.logger import log_trigger, async_log_writer
 
 class Broker(AsyncWebsocketConsumer):
     """
@@ -18,6 +19,7 @@ class Broker(AsyncWebsocketConsumer):
     """
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def create_topic(request):
         """
             1) 檢查必填欄位
@@ -72,6 +74,7 @@ class Broker(AsyncWebsocketConsumer):
         
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def delete_topic(request):
         """
             1) 檢查必填欄位
@@ -122,11 +125,27 @@ class Broker(AsyncWebsocketConsumer):
         # 4) 訂閱 topic
         self.broker.subscribe(self.conversation_uid, self.group_name)
         await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await async_log_writer(
+            log_level="INFO",
+            status_code="200",
+            source_type="Websocket",
+            func=self.connect,
+            args=[self],
+            message="WebSocket connect success"
+        )
 
     async def disconnect(self, code):
         # 1) 取消訂閱 topic
         self.broker.unsubscribe(self.conversation_uid, self.group_name)
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        await async_log_writer(
+            log_level="INFO",
+            status_code="200",
+            source_type="Websocket",
+            func=self.disconnect,
+            args=[self],
+            message="WebSocket disconnect success"
+        )
 
     # -------- WebSocket 進來的資料（前端或其他 WS Client） --------
     @text_decorator(role="user")
@@ -140,6 +159,14 @@ class Broker(AsyncWebsocketConsumer):
         await self.channel_layer.send(
             "consumer",
             {"type": "send_message", "payload": payload},
+        )
+        await async_log_writer(
+            log_level="INFO",
+            status_code="200",
+            source_type="Websocket",
+            func=self.receive,
+            args=[self],
+            message="WebSocket receive success"
         )
 
     # -------- 給 Producer 叫用：Broker.broker_message --------
@@ -160,4 +187,12 @@ class Broker(AsyncWebsocketConsumer):
         remove_reason_json(payload_with_role)
         
         await self.send(text_data=json.dumps(payload_with_role))
+        await async_log_writer(
+            log_level="INFO",
+            status_code="200",
+            source_type="Websocket",
+            func=self.broker_message,
+            args=[self],
+            message="WebSocket broker_message success"
+        )
  

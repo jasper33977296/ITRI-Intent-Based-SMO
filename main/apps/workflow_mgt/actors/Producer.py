@@ -4,6 +4,7 @@ from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from main.utils.logger import log_trigger
 
 class Producer:
     """
@@ -14,6 +15,7 @@ class Producer:
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def dispatch_topic(request):
         """
         流程:

@@ -4,7 +4,7 @@ from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 
 # 自訂的 logger decorator 與寫入工具 (請依您實際的 utils / logger 實作路徑)
-from main.utils.logger import log_trigger, log_writer
+from main.utils.logger import log_trigger
 
 # 您的 WorkflowController (請依實際路徑調整 import)
 from main.apps.metadata_mgt.services.WorkflowController import WorkflowController
@@ -15,8 +15,8 @@ class WorkflowManager:
     """
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def create_workflow_metadata(request):
         """
         建立對應的 Workflow metadata (一對一):
@@ -57,12 +57,11 @@ class WorkflowManager:
             return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
         except Exception as e:
             # 記錄錯誤訊息到 logger
-            log_writer(f"[create_workflow_metadata] Exception: {str(e)}", "ERROR")
             return JsonResponse({"status": False, "message": str(e)}, status=500)
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def get_workflow_metadata(request):
         """
         查詢該 Conversation 對應的唯一 Workflow:
@@ -88,12 +87,11 @@ class WorkflowManager:
         except json.JSONDecodeError:
             return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            log_writer(f"[get_workflow_metadata] Exception: {str(e)}", "ERROR")
             return JsonResponse({"status": False, "message": str(e)}, status=500)
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def update_workflow_metadata(request):
         """
         修改對應 Conversation 的 Workflow:
@@ -126,12 +124,11 @@ class WorkflowManager:
         except json.JSONDecodeError:
             return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            log_writer(f"[update_workflow_status] Exception: {str(e)}", "ERROR")
             return JsonResponse({"status": False, "message": str(e)}, status=500)
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def delete_workflow_metadata(request):
         """
         刪除該 Conversation 對應的 Workflow:
@@ -156,5 +153,4 @@ class WorkflowManager:
         except json.JSONDecodeError:
             return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            log_writer(f"[delete_workflow_metadata] Exception: {str(e)}", "ERROR")
             return JsonResponse({"status": False, "message": str(e)}, status=500)

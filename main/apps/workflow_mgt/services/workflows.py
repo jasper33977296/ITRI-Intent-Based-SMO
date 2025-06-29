@@ -4,6 +4,8 @@ import requests
 from openai import OpenAI
 from main.apps.metadata_mgt.services.ConversationController import ConversationController
 
+from main.utils.logger import log_writer
+
 def text_analysis(user_prompt):
     """
     範例：確認能與 GPT 正常溝通，
@@ -149,6 +151,15 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
                 .get("outputs", {})
                 .get("answer", "未找到 answer")
             )
+            if ans_text == "未找到 answer":
+                log_writer(
+                    log_level="ERROR",
+                    status_code="802",
+                    source_type="dify engine",
+                    func=dify_single_intent_workflow,
+                    args=None,
+                    message=ans_text
+                )
             return {
                 "status": True,
                 "message": "成功取得資料",

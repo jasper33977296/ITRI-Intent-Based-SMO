@@ -6,12 +6,14 @@ from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from main.utils.FileKit import  create_empty_csv ,delete_folder ,delete_file ,read_text_uids_from_csv
 from main.utils.ApiKit import  json_request
+from main.utils.logger import log_trigger
 
 
 class ConversationManager:
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def create_conversation(request):
         """
         建立一個新的對話檔案 (CSV):
@@ -133,6 +135,7 @@ class ConversationManager:
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def get_conversation_list(request):
         """
         取得指定使用者的所有對話清單
@@ -193,6 +196,7 @@ class ConversationManager:
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def delete_conversation(request):
         """
         刪除指定對話:

@@ -3,10 +3,12 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from main.utils.ApiKit import  json_request
+from main.utils.logger import log_trigger
 
 class TopicManager:
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def create_topic(request):
         """
             1) 檢查必填欄位  
@@ -53,6 +55,7 @@ class TopicManager:
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def delete_topic(request):
         """
             1) 檢查必填欄位  
