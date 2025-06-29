@@ -8,7 +8,7 @@ from typing import Callable
 def call_gemini_api_for_title(prompt: str, model_name: str = "gemini-1.5-flash") -> str:
     """僅用於生成標題的 Gemini API 呼叫。"""
     try:
-        api_key = "AIzaSyAMY9s6v6Yb_A2IWZu_R6Nx1ptdo64jaYo"
+        api_key = os.getenv("GEMINI_API_KEY")
         if not api_key: raise ValueError("未設定 GOOGLE_API_KEY 環境變數")
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel(model_name)
