@@ -2,12 +2,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 import json
+from main.utils.logger import log_trigger
 
 from main.apps.metadata_mgt.services.TextController import TextController
 
 class TextManager:
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def create_text_metadata(request):
         try:
             payload = json.loads(request.body)
@@ -41,6 +43,7 @@ class TextManager:
         
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def get_text_metadata(request):
         """
         Input (POST JSON):
@@ -91,6 +94,7 @@ class TextManager:
             }, status=500)
         
 
+    @log_trigger()
     def get_text_metadata_list(request):
         """
         Input (POST JSON):
@@ -144,6 +148,7 @@ class TextManager:
                 "message": f"系統發生錯誤，請稍後再試: {str(e)}"
             }, status=500)
         
+    @log_trigger()
     def delete_text_metadata(request):
         """
         Input (POST JSON):

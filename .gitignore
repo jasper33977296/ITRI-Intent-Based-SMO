@@ -20,3 +20,5 @@ Dockerfile.dev
 Pipfile
 Pipfile.*
 
+run_all.sh
+migrations/

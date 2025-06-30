@@ -107,7 +107,7 @@ class TextController:
                     "message": f"Conversation not found: {conversation_uid}"
                 }
             
-            texts = Text.objects.filter(f_conversation_uid__conversation_uid=conversation_uid).order_by('created_at')
+            texts = Text.objects.filter(f_conversation_uid=conversation_uid).order_by('created_at')
             data_list = []
             for t in texts:
                 data_list.append({

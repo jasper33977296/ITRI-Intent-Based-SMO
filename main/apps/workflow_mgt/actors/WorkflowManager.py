@@ -1,188 +1,240 @@
+import os
 import json
+import base64
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
-from main.apps.workflow_mgt.services.workflows import text_analysis
+from main.utils.logger import log_trigger, log_writer
+
+from main.apps.workflow_mgt.services.workflows import dify_single_intent_workflow
 from main.utils.ApiKit import json_request
 
 class WorkflowManager:
     """
     Workflow Manager:
       - 處理各種 decoupled tasks，如 analysis, scenario mapping, apiflow test & execute
-      - 所有的對話都會經由 create_text decorator 紀錄 (由你自訂)
-      - 不直接呼叫 Broker，若需通知前端 (WebSocket)，透過 Prosumer 提供的 API 進行
+      - 不直接呼叫 Broker，若需通知前端 (WebSocket)，透過 Producer 提供的 API 進行
     """
-
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def execute_workflow(request):
         """
         流程:
-          1) 檢查 payload(必填欄位 conversation_uid, text)
-          2) 呼叫 metadata_mgt API 取得該 conversation 的 workflow step & workflow status
-          3) 根據 step 決定要呼叫的函式:
-             text_analysis, require_scenario_mapping, scenario_apiflow_mapping,
-             apiflow_orgainize, apiflow_test, apiflow_execute
-          4) 透過 Prosumer 廣播給前端
+          1) 檢查 payload(必填欄位 conversation_uid, text_content)
+          2) 呼叫 呼叫 dify 執行工作流
         """
         try:
             # (1) 檢查必填欄位
             payload = json.loads(request.body)
-            if "conversation_uid" not in payload:
+            required_fields = ["conversation_uid", "text_content"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
-                    "status": False,
-                    "message": "Missing field: conversation_uid"
+                    "status_code": 400,
+                    "message": f"Missing required fields: {', '.join(missing_fields)}"
                 }, status=400)
+			
             conversation_uid = payload["conversation_uid"]
-
-            text = payload.get("text")
-        
-            if not text:
-                return JsonResponse({
-                    "status": "error",
-                    "message": "No text provided."
-                }, status=400)
+            text_content = payload["text_content"]
             
             user_content = None
 
-            if isinstance(text, dict):
-                text_content = text.get("text_content", [])
-                if text_content and isinstance(text_content, list):
-                    user_content = text_content[0].get("content", "") 
-                else:
-                    user_content = ""  # 或自行定義預設行為
+            if isinstance(text_content, list):
+                user_content = text_content[0].get("content", "") 
+            else:
+                user_content = "" # 或自行定義預設行為 
 
-            # (2) 呼叫 metadata_mgt 以取得 workflow step & status
-            meta_payload = {"conversation_uid": conversation_uid}
+            # (2) 呼叫 dify 執行工作流
+            result = dify_single_intent_workflow(conversation_uid, user_content)
+            if not result or "parsed_data" not in result:
+                return JsonResponse({
+                    "status_code": 502,
+                    "message": "Failed execute workflow."
+                }, status=502)
+            text_data = result.get("parsed_data","")
+
+            return JsonResponse({
+                "status_code": 200,
+                "message": "Success execute workflow"
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                "status_code": 500,
+                "message": str(e)
+            }, status=500)
+    
+    @csrf_exempt
+    @require_http_methods(["POST"])
+    @log_trigger()
+    def human_in_the_loop(request):
+        """
+        流程:
+          1) 檢查 payload(必填欄位 conversation_uid, text_content)
+          2) 呼叫 workflow_mgt 以分發推播訊息
+        """
+        try:
+            # (1) 檢查必填欄位
+            payload = json.loads(request.body)
+            required_fields = ["conversation_uid", "text_content"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
+                return JsonResponse({
+                    "status_code": 400,
+                    "message": f"Missing required fields: {', '.join(missing_fields)}"
+                }, status=400)
+				
+            conversation_uid = payload["conversation_uid"]
+            text_content = payload["text_content"]
+            
+            # (2) 呼叫 workflow_mgt 以分發推播訊息
+            meta_payload = {
+                "conversation_uid": conversation_uid,
+                "text_content": text_content,
+            }
             try:
                 resp = json_request(
-                    module="metadata_mgt",
-                    actor="WorkflowManager",
-                    function="get_workflow_metadata",
+                    module="workflow_mgt",
+                    actor="Producer",
+                    function="dispatch_topic",
                     payload=meta_payload,
                 )
                 meta_data = resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": "error",
-                    "message": f"Fail to call metadata_mgt: {str(e)}"
+                    "status_code": 502,
+                    "message": f"Fail to call workflow_mgt API (dispatch_topic): {str(e)}"
+                }, status=502)
+            
+            return JsonResponse({
+                "status_code": 200,
+                "message": "Success human in the loop."
+            }, status=200)
+
+        except Exception as e:
+            return JsonResponse({
+                "status_code": 500,
+                "message": str(e)
+            }, status=500)
+    
+    @csrf_exempt
+    @require_http_methods(["POST"])
+    @log_trigger()
+    def update_workflow_status(request):
+        """
+        流程:
+        1) 檢查必填欄位
+        2) 呼叫 metadata_mgt 以更新 workflow step & status
+        """
+        try:
+            # (1) 檢查必填欄位
+            payload = json.loads(request.body)
+            required_fields = ["conversation_uid", "workflow_step", "workflow_status"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
+                return JsonResponse({
+                    "status_code": 400,
+                    "message": f"Missing required fields: {', '.join(missing_fields)}"
+                }, status=400)
+			
+            conversation_uid = payload["conversation_uid"]
+            workflow_step = payload["workflow_step"]
+            workflow_status = payload["workflow_status"]
+            
+            # (2) 呼叫 metadata_mgt 以更新 workflow step & status
+            meta_payload = {
+                "conversation_uid": conversation_uid,
+                "workflow_step": workflow_step,
+                "workflow_status": workflow_status,
+                "start_time": payload.get("start_time"),
+                "end_time": payload.get("end_time"),
+            }
+
+            meta_payload = {k: v for k, v in meta_payload.items() if v is not None}
+            try:
+                resp = json_request(
+                    module="metadata_mgt",
+                    actor="WorkflowManager",
+                    function="update_workflow_metadata",
+                    payload=meta_payload,
+                )
+                meta_data = resp.json()
+            except Exception as e:
+                return JsonResponse({
+                    "status_code": 502,
+                    "message": f"Fail to call metadata_mgt API (get_workflow_metadata): {str(e)}"
                 }, status=502)
 
-            # 檢查後端回傳是否成功
+            # 檢查後端回傳是否成功 ==還需要更改==
             if not meta_data.get("status", False):
                 return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
 
             # 從回傳資料中取出 step, status
             workflow_info = meta_data.get("data", {})
-            workflow_step = workflow_info.get("workflow_step", "text_analysis")
+            workflow_step = workflow_info.get("workflow_step", "demo")
 
             # (3) 根據 step 呼叫對應函式
-            if workflow_step == "text_analysis":
-                result = text_analysis(user_content)
-            # elif workflow_step == "require_scenario_mapping":
-            #     result = require_scenario_mapping(user_content)
-            #     event_type = "require_scenario_mapping"
-            # elif workflow_step == "scenario_apiflow_mapping":
-            #     result = scenario_apiflow_mapping(user_content)
-            #     event_type = "scenario_apiflow_mapping"
-            # elif workflow_step == "apiflow_orgainize":
-            #     result = apiflow_orgainize(user_content)
-            #     event_type = "apiflow_orgainize"
-            # elif workflow_step == "apiflow_test":
-            #     result = apiflow_test(user_content)
-            #     event_type = "apiflow_test"
-            # elif workflow_step == "apiflow_execute":
-            #     result = apiflow_execute(user_content)
-            #     event_type = "apiflow_execute"
-            else:
-                # 若不在預期清單內，就當作未知
-                result = f"Unknown workflow_step ({workflow_step}). content={user_content}"
+            result = dify_single_intent_workflow(conversation_uid=conversation_uid,user_prompt=content)
+
+            text_data = result.get("parsed_data","")
 
             return JsonResponse({
                     "event_type": workflow_step,
                     "conversation_uid": conversation_uid,
-                    "text": result
+                    "text": text_data
             })
 
         except Exception as e:
             return JsonResponse({
-                "status": "error",
+                "status_code": 500,
                 "message": str(e)
             }, status=500)
-        
 
-    def require_scenario_mapping(request):
+    @csrf_exempt
+    @require_http_methods(["POST"])
+    @log_trigger()
+    def logger_human_in_the_loop(request):
         """
-        對 conversation 進行情境對應 (scenario mapping)
-        Input JSON: {
-            "conversation_uid": "..."
-        }
+        流程:
+          1) 檢查 payload (必填欄位 conversation_uid, text_uid, text_content)
+          2) 呼叫 metadata_mgt API 取得該 conversation 的 workflow step & workflow status
+          3) 根據 workflow status 處理:
+             - 若 status="start": 創建一個新的 text
+             - 若 status="running": 加入訊息到該 text
+             - 若 status="finish": 更新 workflow status 為 finish (或其他收尾處理)
+          4) 透過 Prosumer 廣播給前端
         """
-        conversation_uid = request.POST.get("conversation_uid")
-        if not conversation_uid:
-            return JsonResponse({"status":"error","message":"No conversation_uid provided."}, status=400)
+        try:
+            payload = json.loads(request.body)
 
-        # 假設做一些情境對應的邏輯
-        # scenario_result = do_scenario_mapping(...)
+            # 必填欄位檢查
+            required_fields = ["status_code","message"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
+                return JsonResponse({
+                    "status_code": 400,
+                    "status": False,
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
+                }, status=400)
 
-        # broadcast_to_prosumer(conversation_uid, "scenario_mapping", {"result": scenario_result})
-        return JsonResponse({"status":"ok","message":"Scenario mapping requested."})
+            log_writer(
+                log_level="ERROR",
+                status_code=payload["status_code"],
+                source_type="dify engine",
+                func="workflow_mgt/ WorkflowManager/ logger_human_in_the_loop",
+                args=[payload],
+                message=payload["message"]
+            )
 
-    def scenario_apiflow_mapping(request):
-        """
-        對 conversation 進行 API Flow 情境對應
-        Input JSON: {
-            "conversation_uid": "..."
-        }
-        """
-        conversation_uid = request.POST.get("conversation_uid")
-        if not conversation_uid:
-            return JsonResponse({"status":"error","message":"No conversation_uid provided."}, status=400)
+            # 最後回傳 HTTP 結果
+            return JsonResponse({
+                "status": True,
+                "message": "Logger Human in the loop processed successfully",
+            }, status=200)
 
-        # do_something...
-        # broadcast_to_prosumer(conversation_uid, "apiflow_mapping", {...})
-
-        return JsonResponse({"status":"ok","message":"Scenario APIFlow mapping requested."})
-
-
-    def apiflow_test(request):
-        """
-        測試指定 conversation 的 API Flow
-        Input JSON:
-        {
-            "conversation_uid": "...",
-            "test_params": {...}
-        }
-        """
-        conversation_uid = request.POST.get("conversation_uid")
-        test_params = request.POST.get("test_params", {})
-
-        if not conversation_uid:
-            return JsonResponse({"status":"error","message":"No conversation_uid provided."}, status=400)
-
-        # do_apiflow_test...
-        # broadcast_to_prosumer(conversation_uid, "apiflow_test", {...})
-
-        return JsonResponse({"status":"ok","message":"APIFlow test requested."})
-
-
-    def apiflow_execute(request):
-        """
-        執行指定 conversation 的 API Flow
-        Input JSON:
-        {
-            "conversation_uid": "...",
-            "execute_params": {...}
-        }
-        """
-        conversation_uid = request.POST.get("conversation_uid")
-        execute_params = request.POST.get("execute_params", {})
-
-        if not conversation_uid:
-            return JsonResponse({"status":"error","message":"No conversation_uid provided."}, status=400)
-
-        # do_apiflow_execute...
-        # broadcast_to_prosumer(conversation_uid, "apiflow_execute", {...})
-
-        return JsonResponse({"status":"ok","message":"APIFlow execute requested."})
+        except json.JSONDecodeError:
+            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+        except Exception as e:
+            return JsonResponse({"status": False, "message": str(e)}, status=500)

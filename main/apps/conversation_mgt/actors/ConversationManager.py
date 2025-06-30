@@ -4,14 +4,16 @@ import uuid
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
-from main.utils.FileKit import  create_empty_csv ,delete_folder ,delete_file
+from main.utils.FileKit import  create_empty_csv ,delete_folder ,delete_file ,read_text_uids_from_csv
 from main.utils.ApiKit import  json_request
+from main.utils.logger import log_trigger
 
 
 class ConversationManager:
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def create_conversation(request):
         """
         建立一個新的對話檔案 (CSV):
@@ -40,7 +42,7 @@ class ConversationManager:
             # 2) 呼叫 metadata_mgt API: 建立 conversation metadata, 並取得 conversation_uid
             meta_payload = {
                 "user_uid": user_uid,
-                "conversation_name": f"{uuid.uuid4()}"
+                "conversation_name": ''
             }
             try:
                 resp = json_request(
@@ -104,11 +106,11 @@ class ConversationManager:
                 resp_topic = json_request(
                     module="topic_mgt",
                     actor="TopicManager",
-                    function="init_topic",
+                    function="create_topic",
                     payload=topic_payload,
                 )
                 topic_data = resp_topic.json()
-                if not topic_data.get("status", False):
+                if not topic_data.get("status_code", 201):
                     return JsonResponse(topic_data, status=topic_data.get("status_code", 400))
             except Exception as e:
                 return JsonResponse({
@@ -133,6 +135,7 @@ class ConversationManager:
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def get_conversation_list(request):
         """
         取得指定使用者的所有對話清單
@@ -193,14 +196,17 @@ class ConversationManager:
 
     @csrf_exempt
     @require_http_methods(["POST"])
+    @log_trigger()
     def delete_conversation(request):
         """
         刪除指定對話:
         1) 檢查必填欄位 conversation_uid
         2) 透過 metadata_mgt 取得 CSV 路徑、user_uid
-        3) 呼叫 metadata_mgt 刪除 conversation meta data
-        4) 刪除整個 texts/{conversation_uid} 資料夾
-        5) 刪除 conversations/{user_uid}/{conversation_uid}.csv
+        3) 讀取 CSV 檔取得所有 text_uid
+        4) 逐一呼叫 TextManager.delete_text (每個 text 會同時刪除其 image metadata + 圖檔)
+        5) 呼叫 metadata_mgt 刪除 conversation metadata
+        6) 刪除整個 texts/{conversation_uid} 資料夾 (已空，但保險刪除)
+        7) 刪除 conversations/{user_uid}/{conversation_uid}.csv
         """
         try:
             # 1) 解析 JSON, 檢查必填欄位
@@ -222,7 +228,6 @@ class ConversationManager:
                     function="get_conversation_metadata",
                     payload=meta_payload,
                 )
-
                 get_meta_data = resp.json()
             except Exception as e:
                 return JsonResponse({
@@ -234,16 +239,45 @@ class ConversationManager:
                 return JsonResponse(get_meta_data, status=get_meta_data.get("status_code", 400))
 
             # 取得 CSV 路徑與 user_uid
-            conversation_path = get_meta_data["data"].get("conversation_path", "")
-            user_uid = get_meta_data["data"].get("user_uid", "")
-
+            conversation_path = get_meta_data["data"].get("conversation_path")
+            user_uid = get_meta_data["data"].get("user_uid")
             if not conversation_path or not user_uid:
                 return JsonResponse({
                     "status": False,
                     "message": "conversation_path or user_uid not found in metadata"
                 }, status=400)
 
-            # 3) 呼叫 metadata_mgt: delete_conversation_metadata
+            # 3) 讀取 CSV，取得所有 text_uid
+            try:
+                text_uids = read_text_uids_from_csv(conversation_path)
+            except Exception as e:
+                return JsonResponse({
+                    "status": False,
+                    "message": f"Failed to read CSV file: {str(e)}"
+                }, status=500)
+
+            # 4) 逐一刪除每個 text_uid （會連帶刪除 image metadata 與檔案）
+            for text_uid in text_uids:
+                delete_text_payload = {"text_uid": text_uid}
+                try:
+                    resp_del_text = json_request(
+                        module="conversation_mgt",  # or "metadata_mgt", depending on your architecture
+                        actor="TextManager",
+                        function="delete_text",
+                        payload=delete_text_payload,
+                    )
+                    del_text_data = resp_del_text.json()
+                except Exception as e:
+                    return JsonResponse({
+                        "status": False,
+                        "message": f"Fail to call delete_text for text_uid={text_uid}: {str(e)}"
+                    }, status=502)
+
+                if not del_text_data.get("status", False):
+                    # 即使某個 text 刪除失敗，可選擇直接中斷或繼續嘗試刪除其他 text
+                    return JsonResponse(del_text_data, status=del_text_data.get("status_code", 400))
+
+            # 5) 呼叫 metadata_mgt: delete_conversation_metadata
             try:
                 resp_del = json_request(
                     module="metadata_mgt",
@@ -261,7 +295,7 @@ class ConversationManager:
             if not del_meta_data.get("status", False):
                 return JsonResponse(del_meta_data, status=del_meta_data.get("status_code", 400))
 
-            # 4) 刪除整個 texts/{conversation_uid} 資料夾
+            # 6) 刪除 texts/{conversation_uid} 資料夾 (若裡面已空則快; 若有殘留檔案也能清掉)
             try:
                 text_dir = os.path.join("texts", conversation_uid)
                 delete_folder(text_dir)
@@ -271,7 +305,7 @@ class ConversationManager:
                     "message": f"Failed to remove folder texts/{conversation_uid}: {str(e)}"
                 }, status=500)
 
-            # 5) 刪除 conversations/{user_uid}/{conversation_uid}.csv
+            # 7) 刪除 conversations/{user_uid}/{conversation_uid}.csv
             try:
                 delete_file(conversation_path)
             except Exception as e:

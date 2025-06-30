@@ -2,14 +2,10 @@ FROM python:3.9
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y git
+COPY . .
 
-RUN git clone https://github.com/jasper33977296/ITRI-Intent-Based-SMO.git
+RUN pip install --no-cache-dir -r requirements/base.txt
 
-COPY .env ITRI-Intent-Based-SMO/.env
-
-RUN pip install --no-cache-dir -r ITRI-Intent-Based-SMO/requirements/base.txt
-
-WORKDIR /app/ITRI-Intent-Based-SMO
-
-CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:30000"]
+CMD ["sh", "-c", "python manage.py makemigrations && \
+                  python manage.py migrate && \
+                  exec python manage.py runserver 0.0.0.0:30000"]

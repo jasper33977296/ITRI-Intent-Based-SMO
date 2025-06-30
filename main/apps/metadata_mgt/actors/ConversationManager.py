@@ -1,7 +1,7 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
-from main.utils.logger import log_trigger, log_writer
+from main.utils.logger import log_trigger
 from main.apps.metadata_mgt.services.ConversationController import ConversationController
 import json
 
@@ -13,8 +13,8 @@ class ConversationManager():
     """
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def create_conversation_metadata(request):
         """
         Input (POST JSON):
@@ -59,8 +59,8 @@ class ConversationManager():
             }, status=500)
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def get_conversation_metadata_list(request):
         """
         Input (POST JSON):
@@ -95,8 +95,8 @@ class ConversationManager():
             }, status=500)
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def get_conversation_metadata(request):
         """
         Input (POST JSON):
@@ -130,8 +130,8 @@ class ConversationManager():
             }, status=500)
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def update_conversation_name(request):
         """
         Input (POST JSON):
@@ -180,8 +180,8 @@ class ConversationManager():
             }, status=500)
 
     @csrf_exempt
-    @log_trigger("INFO")
     @require_http_methods(["POST"])
+    @log_trigger()
     def delete_conversation_metadata(request):
         """
         Input (POST JSON):

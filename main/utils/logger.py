@@ -3,10 +3,13 @@ System log utils.
 """
 import os
 import json
+import types
+import traceback
 from functools import wraps
 from datetime import datetime
 from dotenv import load_dotenv
 from django.core.handlers.wsgi import WSGIRequest
+from asgiref.sync import sync_to_async
 
 load_dotenv()
 log_folder_path = os.environ.get('LOGS_FOLDER_PATH')
@@ -17,42 +20,50 @@ def ensure_log_folder_exists():
     if not os.path.exists(log_folder_path):
         os.makedirs(log_folder_path)
 
-
-def generate_log_content(log_level, func, args, message=None):
+def detect_source_type(args):
     """
-    Generate the log content.
+    根據 request META 自動判斷來源
+    """
+    request = args[0] if args else None
+    source_type = "Unknown"
 
-    :param log_level: The log level e.g., "INFO", "ERROR", etc.
-    :param func: The function that triggers the log.
-    :param args: Arguments for the function that triggers the log.
-    :param message: Additional log message.
-    :return: Formatted log string.
+    if request and hasattr(request, "META"):
+        meta = request.META
+        has_via = "HTTP_VIA" in meta
+        has_forwarded = "HTTP_X_FORWARDED_FOR" in meta
+
+        if has_via or has_forwarded:
+            source_type = "dify engine"
+        else:
+            source_type = "n8n engine"
+
+    return source_type
+
+def generate_log_content(log_level, status_code, source_type='system', func=None, args=None, message=None):
+    """
+    根據來源（內部模組、外部系統）產生對應格式的 log 字串
+    - source_type: 'system' | 'dify engine' | 'n8n engine'
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    module_name = func.__module__.split('.')[-3] if func else "Unknown"
-    actor_name = func.__module__.split('.')[-1] if func else "Unknown"
-    function_name = func.__name__ if func else "Unknown"
 
-    request = args[0] if args else None
-    payload = 'Not a Django WSGI Request'
+    if isinstance(func, str):
+        log_str = f"[{log_level}] [{status_code}] [{source_type}]: {func} [message]: {message}"
+    else:
+        module = func.__module__.split('.')[-3] if func else "Unknown"
+        actor = func.__module__.split('.')[-1] if func else "Unknown"
+        func_name = func.__name__ if func else "Unknown"
 
-    if isinstance(request, WSGIRequest):
-        try:
-            payload = json.loads(request.body.decode('utf-8'))
-        except json.JSONDecodeError:
-            payload = 'Invalid JSON or empty payload'
+        if func_name == 'human_in_the_loop':
+            source_type = detect_source_type(args)
 
-    log_tail = f"payload: {payload}" if message is None else f"message: {message}"
+        log_str = f"[{log_level}] [{status_code}] [{source_type}]: {module}/ {actor}/ {func_name} [message]: {message}"
 
-    return f"[{log_level}] time: {timestamp}, module: {module_name}, actor: {actor_name}, function: {function_name}, {log_tail}\n"
+    return f"{timestamp} - {log_str}\n" 
 
 
-def log_trigger(log_level: str):
+def log_trigger():
     """
-    Decorator to write logs before calling the api function.
-
-    :param log_level: The log level e.g., "INFO", "ERROR", etc.
-    :return: decorator function.
+    decorator：記錄執行成功與例外錯誤的 log
     """
     def decorator(func):
         @wraps(func)
@@ -61,33 +72,72 @@ def log_trigger(log_level: str):
             log_file_name = f"{datetime.now().strftime('%Y-%m-%d')}_log.txt"
             log_file_path = os.path.join(log_folder_path, log_file_name)
 
-            log_content = generate_log_content(log_level, func, args)
+            try:
+                result = func(*args, **kwargs)
 
-            with open(log_file_path, "a", encoding="utf8") as file:
-                file.write(log_content)
+                # 解析回傳的 JsonResponse 內容
+                try:
+                    if hasattr(result, "content"):
+                        content = json.loads(result.content.decode("utf-8"))
+                        status_code = (
+                            str(content["status_code"]) if "status_code" in content else
+                            "700" if content.get("status") is True else
+                            "800" if content.get("status") is False else
+                            "600"
+                        )
+                        message = content.get("message", "No message")
+                    else:
+                        status_code = "601"
+                        message = "Successfully"
+                except Exception:
+                    status_code = "801"
+                    message = "Exception"
 
-            return func(*args, **kwargs)
+                log_content = generate_log_content(
+                    log_level="INFO",
+                    status_code=status_code,
+                    func=func,
+                    args=args,
+                    message=message
+                )
+                with open(log_file_path, "a", encoding="utf8") as f:
+                    f.write(log_content)
+                return result
+
+            except Exception as e:
+                # 捕捉錯誤，記錄錯誤 log
+                error_type = type(e).__name__
+                error_trace = traceback.format_exc()
+                log_content = generate_log_content(
+                    log_level="ERROR",
+                    status_code="801",
+                    func=func,
+                    args=args,
+                    message=f"[{error_type}]: {str(e)} [{{error_trace}}]: {error_trace}"
+                )
+                with open(log_file_path, "a", encoding="utf8") as f:
+                    f.write(log_content)
 
         return wrapper
-
     return decorator
 
 
-def log_writer(log_level: str, func=None, args=None, message=None):
+def log_writer(log_level, status_code, source_type='system', func=None, args=None, message=None):
     """
-    Write logs. It can be used during the execution of api function or at the end of execution.
-
-    :param log_level: The log level e.g., "INFO", "ERROR", etc.
-    :param func: The function that triggers the log.
-    :param args: Arguments for the function that triggers the log..
-    :param message: Additional log message.
+    提供給非 decorator 的 log 記錄方式（手動調用）
+    - log_level: INFO, ERROR 等
+    - status_code: 狀態碼
+    - source_type: 'system' | 'dify engine' | 'n8n engine'
     """
     ensure_log_folder_exists()
     log_file_name = f"{datetime.now().strftime('%Y-%m-%d')}_log.txt"
     log_file_path = os.path.join(log_folder_path, log_file_name)
 
-    log_content = generate_log_content(log_level, func, args, message)
-    print(func.__name__)
+    log_content = generate_log_content(log_level, status_code, source_type, func, args, message)
 
     with open(log_file_path, "a", encoding="utf8") as file:
         file.write(log_content)
+
+@sync_to_async
+def async_log_writer(*args, **kwargs):
+    log_writer(*args, **kwargs)
