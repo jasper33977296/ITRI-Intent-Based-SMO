@@ -116,6 +116,41 @@ class TextManager:
                 if isinstance(item.get('content'), str):
                     item['content'] = pattern.sub('', item['content'])
 
+            # 判斷 type == image 創建 image
+            for item in text_array:
+                if item.get("type") == "image":
+                    meta_payload = {
+                        "conversation_uid": conversation_uid,
+                        "content": item.get("content")
+                    }
+
+                    try:
+                        resp = json_request(
+                            module="conversation_mgt",
+                            actor="ImageManager",
+                            function="create_image",
+                            payload=meta_payload
+                        )
+                        result = resp.json()
+
+                        if result.get("status_code") != 201:
+                            return JsonResponse(result, status=result.get("status_code", 400))
+
+                        image_uid = result.get("data", {}).get("image_uid")
+                        if not image_uid:
+                            return JsonResponse({
+                                "status": False,
+                                "message": f"image_uid 不存在於回傳值中: {result}"
+                            }, status=500)
+
+                        item["content"] = image_uid
+
+                    except Exception as e:
+                        return JsonResponse({
+                            "status": False,
+                            "message": f"Failed to create image metadata: {str(e)}"
+                        }, status=500)
+
             # (2) 呼叫 metadata_mgt 建立 text metadata
             try:
                 text_meta_resp = json_request(
