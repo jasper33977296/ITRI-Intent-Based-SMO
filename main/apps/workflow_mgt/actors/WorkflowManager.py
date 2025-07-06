@@ -1,6 +1,4 @@
-import os
 import json
-import base64
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
@@ -59,59 +57,6 @@ class WorkflowManager:
                 "status_code": 200,
                 "message": "Success execute workflow"
             })
-
-        except Exception as e:
-            return JsonResponse({
-                "status_code": 500,
-                "message": str(e)
-            }, status=500)
-    
-    @csrf_exempt
-    @require_http_methods(["POST"])
-    @log_trigger()
-    def human_in_the_loop(request):
-        """
-        流程:
-          1) 檢查 payload(必填欄位 conversation_uid, text_content)
-          2) 呼叫 workflow_mgt 以分發推播訊息
-        """
-        try:
-            # (1) 檢查必填欄位
-            payload = json.loads(request.body)
-            required_fields = ["conversation_uid", "text_content"]
-            missing_fields = [f for f in required_fields if f not in payload]
-            if missing_fields:
-                return JsonResponse({
-                    "status_code": 400,
-                    "message": f"Missing required fields: {', '.join(missing_fields)}"
-                }, status=400)
-				
-            conversation_uid = payload["conversation_uid"]
-            text_content = payload["text_content"]
-            
-            # (2) 呼叫 workflow_mgt 以分發推播訊息
-            meta_payload = {
-                "conversation_uid": conversation_uid,
-                "text_content": text_content,
-            }
-            try:
-                resp = json_request(
-                    module="workflow_mgt",
-                    actor="Producer",
-                    function="dispatch_topic",
-                    payload=meta_payload,
-                )
-                meta_data = resp.json()
-            except Exception as e:
-                return JsonResponse({
-                    "status_code": 502,
-                    "message": f"Fail to call workflow_mgt API (dispatch_topic): {str(e)}"
-                }, status=502)
-            
-            return JsonResponse({
-                "status_code": 200,
-                "message": "Success human in the loop."
-            }, status=200)
 
         except Exception as e:
             return JsonResponse({
