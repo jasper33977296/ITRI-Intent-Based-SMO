@@ -4,6 +4,30 @@ import openai
 import google.generativeai as genai
 from typing import Callable
 
+# --- OpenAI API 呼叫函式 ---
+def call_openai_api_for_title(prompt: str, model_name: str = "gpt-3.5-turbo") -> str:
+    """僅用於生成標題的 OpenAI API 呼叫。"""
+    try:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key: raise ValueError("未設定 OPENAI_API_KEY 環境變數")
+        openai.api_key = api_key
+
+        # 根據你的需求，可以使用 chat.completions.create 或 completions.create
+        # 這裡我們使用推薦的 chat.completions.create
+        response = openai.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "你是一個標題生成器。請根據使用者輸入，產生一個簡潔、準確的中文標題，並以 JSON 格式輸出。"},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"} # 顯式要求 JSON 輸出，僅適用於某些模型和 API 版本
+        )
+        # 確保回傳正確的內容
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"[OpenAI API 錯誤]: {e}")
+        return "標題生成失敗"
+
 # --- Gemini API 呼叫函式  ---
 def call_gemini_api_for_title(prompt: str, model_name: str = "gemini-1.5-flash") -> str:
     """僅用於生成標題的 Gemini API 呼叫。"""
@@ -21,8 +45,8 @@ def call_gemini_api_for_title(prompt: str, model_name: str = "gemini-1.5-flash")
 
 def generate_conversation_title(
     user_prompt: str,
-    api_backend: Callable[[str, str], str] = call_gemini_api_for_title,
-    model_name: str = "gemini-2.5-flash"
+    api_backend: Callable[[str, str], str] = call_openai_api_for_title,
+    model_name: str = "gpt-3.5-turbo"
 ) -> str:
     """
     根據使用者提問，呼叫指定的 API 後端來生成對話標題。
