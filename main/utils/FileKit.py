@@ -105,6 +105,9 @@ def create_json_file(json_path: str, content: dict) -> None:
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(content, f, ensure_ascii=False, indent=2)
 
+def create_folder(folder_path):
+    os.makedirs(folder_path, exist_ok=True)
+
 def delete_folder(folder_path: str):
     """
     刪除指定資料夾（含其子檔案與子資料夾）
