@@ -239,6 +239,7 @@ class ImageManager:
 
     @csrf_exempt
     @require_http_methods(["GET"])
+    @log_trigger()
     def get_image(request, conversation_uid, image_uid):
         # 1. 構建圖片路徑
         # 使用傳入的 conversation_uid 和 image_uid 來構建路徑
