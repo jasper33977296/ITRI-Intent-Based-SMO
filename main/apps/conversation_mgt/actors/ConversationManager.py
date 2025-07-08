@@ -207,6 +207,7 @@ class ConversationManager:
         5) 呼叫 metadata_mgt 刪除 conversation metadata
         6) 刪除整個 texts/{conversation_uid} 資料夾 (已空，但保險刪除)
         7) 刪除 conversations/{user_uid}/{conversation_uid}.csv
+        8) 呼叫 topic_mgt: delete_topic
         """
         try:
             # 1) 解析 JSON, 檢查必填欄位
@@ -276,7 +277,7 @@ class ConversationManager:
                 if not del_text_data.get("status", False):
                     # 即使某個 text 刪除失敗，可選擇直接中斷或繼續嘗試刪除其他 text
                     return JsonResponse(del_text_data, status=del_text_data.get("status_code", 400))
-
+            
             # 5) 呼叫 metadata_mgt: delete_conversation_metadata
             try:
                 resp_del = json_request(
@@ -313,6 +314,24 @@ class ConversationManager:
                     "status": False,
                     "message": f"Failed to remove CSV file: {str(e)}"
                 }, status=500)
+
+            # 8) 呼叫 topic_mgt: delete_topic
+            try:
+                resp_del = json_request(
+                    module="topic_mgt",
+                    actor="Broker",
+                    function="delete_topic",
+                    payload=meta_payload,
+                )
+                del_meta_data = resp_del.json()
+            except Exception as e:
+                return JsonResponse({
+                    "status": False,
+                    "message": f"Fail to call metadata_mgt API (delete_conversation_metadata): {str(e)}"
+                }, status=502)
+
+            if not del_meta_data.get("status", False):
+                return JsonResponse(del_meta_data, status=del_meta_data.get("status_code", 400))
 
             # 全部成功
             return JsonResponse({

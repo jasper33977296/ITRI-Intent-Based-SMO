@@ -192,12 +192,12 @@ class ImageManager:
             if meta_data.get("status_code") != 200:
                 return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
 
-            image_path = meta_data["data"].get("image_path")
+            image_path = Path(settings.MEDIA_ROOT) / meta_data["data"].get("image_path")
 
             if not image_path or not os.path.exists(image_path):
                 return JsonResponse({
                     "status": False,
-                    "message": "Image file does not exist"
+                    "message": f"[{image_path}] Image file does not exist"
                 }, status=404)
 
             # 刪除圖片
