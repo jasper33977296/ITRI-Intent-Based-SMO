@@ -3,6 +3,7 @@ from main.apps.metadata_mgt.actors.UserManager import UserManager
 from main.apps.metadata_mgt.actors.ConversationManager import ConversationManager
 from main.apps.metadata_mgt.actors.TextManager import TextManager
 from main.apps.metadata_mgt.actors.WorkflowManager import WorkflowManager
+from main.apps.metadata_mgt.actors.ImageManager import ImageManager
 
 urlpatterns = [
     path("metadata_mgt/UserManager/create_user",UserManager.create_user,name='create_user'),
@@ -20,4 +21,8 @@ urlpatterns = [
     path('metadata_mgt/WorkflowManager/get_workflow_metadata', WorkflowManager.get_workflow_metadata,name='get_workflow_metadata'),
     path('metadata_mgt/WorkflowManager/update_workflow_metadata', WorkflowManager.update_workflow_metadata,name='update_workflow_metadata'),
     path('metadata_mgt/WorkflowManager/delete_workflow_metadata', WorkflowManager.delete_workflow_metadata,name='delete_workflow_metadata'),
+    path('metadata_mgt/ImageManager/create_image_metadata', ImageManager.create_image_metadata,name='create_image_metadata'),
+    path('metadata_mgt/ImageManager/get_image_metadata', ImageManager.get_image_metadata,name='get_image_metadata'),
+    path('metadata_mgt/ImageManager/get_image_metadata_list', ImageManager.get_image_metadata_list,name='get_image_metadata_list'),
+    path('metadata_mgt/ImageManager/delete_image_metadata', ImageManager.delete_image_metadata,name='delete_image_metadata'),
 ]

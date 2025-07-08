@@ -10,3 +10,4 @@ openai==1.61.0
 google-generativeai
 pymongo==3.11.4
 mongoengine==0.29.1
+sseclient-py
