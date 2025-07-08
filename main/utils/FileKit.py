@@ -3,6 +3,7 @@ import re
 import csv
 import json
 import shutil
+from pathlib import Path
 
 
 def create_empty_csv(file_path: str) -> None:
@@ -119,8 +120,14 @@ def delete_file(file_path: str):
     """
     刪除指定檔案
     """
-    if os.path.exists(file_path):
-        os.remove(file_path)
+    file_path_obj = Path(file_path)
+    if os.path.exists(file_path_obj):
+        os.remove(file_path_obj)
+        
+        # 取得父資料夾
+        parent_directory = file_path_obj.parent
+        if parent_directory.is_dir() and not list(parent_directory.iterdir()):
+            os.rmdir(parent_directory)
 
 def _remove_reason_json(content: str) -> str:
     """
