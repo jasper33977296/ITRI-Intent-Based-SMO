@@ -13,5 +13,5 @@ urlpatterns = [
     path("conversation_mgt/ImageManager/create_image",ImageManager.create_image,name='create_image'),
     path("conversation_mgt/ImageManager/get_image_list",ImageManager.get_image_list,name='get_image_list'),
     path("conversation_mgt/ImageManager/delete_image",ImageManager.delete_image,name='delete_image'),
-    path("conversation_mgt/ImageManager/get_image/<uuid:conversation_uid>/<uuid:image_uid>.png",ImageManager.get_image,name='get_image'),
+    path("conversation_mgt/ImageManager/get_image",ImageManager.get_image,name='get_image'),
 ]

@@ -237,24 +237,42 @@ class ImageManager:
         except Exception as e:
             return JsonResponse({"status": False, "message": str(e)}, status=500)
 
-    @csrf_exempt
-    @require_http_methods(["GET"])
+    @csrf_exempt 
+    @require_http_methods(["POST"])
     @log_trigger()
-    def get_image(request, conversation_uid, image_uid):
-        # 1. 構建圖片路徑
-        # 使用傳入的 conversation_uid 和 image_uid 來構建路徑
-        image_path = Path(settings.MEDIA_ROOT) / "images" / str(conversation_uid) / f"{image_uid}.png"
-
-        # 2. 檢查檔案是否存在
-        if not image_path.is_file():
-            print(f"Debug: Image file not found at {image_path}") # 會印出這行
-            raise Http404("Image not found.") # 然後拋出這個 404
-
+    def get_image(request):
         try:
+            payload = json.loads(request.body)
+            
+            # (1) 檢查必填欄位
+            required_fields = ["conversation_uid", "image_uid"]
+            missing = [f for f in required_fields if f not in payload]
+            if missing:
+                return JsonResponse({
+                    "status": False,
+                    "message": f"Missing required fields: {', '.join(missing)}"
+                }, status=400)
+            
+            conversation_uid = payload.get("conversation_uid")
+            image_uid = payload.get("image_uid")
+
+            # (2) 構建圖片路徑
+            image_path = Path(settings.MEDIA_ROOT) / "images" / str(conversation_uid) / f"{image_uid}.png"
+
+            # (3) 檢查檔案是否存在並提供
+            if not image_path.is_file():
+                print(f"Debug: Image file not found at {image_path}")
+                raise Http404("Image not found.")
+
             return FileResponse(open(image_path, 'rb'), content_type='image/png')
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON in request body'}, status=400)
+        except Http404 as e:
+            print(f"Debug: Http404 caught: {e}")
+            return JsonResponse({'error': str(e)}, status=404)
         except FileNotFoundError:
-            print(f"Debug: FileNotFoundError for {image_path}")
-            raise Http404("Image not found.")
+            print(f"Debug: FileNotFoundError during open for {image_path}")
+            return JsonResponse({'error': 'Image file not found'}, status=404)
         except Exception as e:
             print(f"Error serving image: {e}")
-            raise Http404("Image could not be served.")
+            return JsonResponse({'error': 'Image could not be served due to server error.'}, status=500)
