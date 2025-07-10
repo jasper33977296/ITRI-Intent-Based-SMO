@@ -14,6 +14,7 @@ urlpatterns = [
     path('metadata_mgt/ConversationManager/get_conversation_metadata', ConversationManager.get_conversation_metadata,name='get_conversation_metadata'),
     path('metadata_mgt/ConversationManager/update_conversation_name', ConversationManager.update_conversation_name,name='update_conversation_name'),    
     path('metadata_mgt/ConversationManager/delete_conversation_metadata', ConversationManager.delete_conversation_metadata,name='delete_conversation_metadata'),
+    path('metadata_mgt/ConversationManager/verify_conversation_exist', ConversationManager.verify_conversation_exist,name='verify_conversation_exist'),
     path('metadata_mgt/TextManager/create_text_metadata', TextManager.create_text_metadata,name='create_text_metadata'),
     path('metadata_mgt/TextManager/get_text_metadata', TextManager.get_text_metadata,name='get_text_metadata'),
     path('metadata_mgt/TextManager/delete_text_metadata', TextManager.delete_text_metadata,name='delete_text_metadata'),

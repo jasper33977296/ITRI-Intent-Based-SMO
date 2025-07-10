@@ -213,3 +213,51 @@ class ConversationManager():
                 "status": False,
                 "message": f"系統發生錯誤，請稍後再試: {str(e)}"
             }, status=500)
+        
+    @csrf_exempt
+    @require_http_methods(["POST"])
+    @log_trigger()
+    def verify_conversation_exist(request):
+        """
+        Input (POST JSON):
+            {
+                "conversation_uid": <string>
+            }
+
+        Output (JsonResponse):
+            {
+                "status_code": <int>,
+                "message": <string>
+            }
+        """
+        try:
+            payload = json.loads(request.body)
+
+            # 檢查必填欄位
+            if "conversation_uid" not in payload:
+                return JsonResponse({
+                    "status": False,
+                    "message": "缺少必填欄位: conversation_uid"
+                }, status=400)
+
+            # 呼叫 Controller
+            response = ConversationController.get_conversation(
+                conversation_uid=payload["conversation_uid"]
+            )
+
+            # 從 Controller 回傳的資料只取 status、message 即可
+            return JsonResponse({
+                "status": response["status"],
+                "message": response["message"]
+            }, status=response["status_code"])
+
+        except json.JSONDecodeError:
+            return JsonResponse({
+                "status": False,
+                "message": "無效的 JSON 格式"
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                "status": False,
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
+            }, status=500)
