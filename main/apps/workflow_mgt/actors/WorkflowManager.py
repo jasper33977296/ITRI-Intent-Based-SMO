@@ -97,7 +97,7 @@ class WorkflowManager:
         try:
             # (1) 檢查必填欄位
             payload = json.loads(request.body)
-            required_fields = ["conversation_uid", "workflow_step", "workflow_status"]
+            required_fields = ["conversation_uid", "workflow_status"]
             missing_fields = [f for f in required_fields if f not in payload]
             if missing_fields:
                 return JsonResponse({
@@ -106,13 +106,12 @@ class WorkflowManager:
                 }, status=400)
 			
             conversation_uid = payload["conversation_uid"]
-            workflow_step = payload["workflow_step"]
             workflow_status = payload["workflow_status"]
             
             # (2) 呼叫 metadata_mgt 以更新 workflow step & status
             meta_payload = {
                 "conversation_uid": conversation_uid,
-                "workflow_step": workflow_step,
+                "workflow_step": payload.get("workflow_step"),
                 "workflow_status": workflow_status,
                 "start_time": payload.get("start_time"),
                 "end_time": payload.get("end_time"),
