@@ -126,6 +126,24 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
             timeout=60,
             stream=True
         )
+
+        # 更新 workflow step & status 2
+        work_payload = {
+            "conversation_uid": conversation_uid,
+            # "workflow_step": "A",
+            "workflow_status": "2"
+        }
+
+        try:
+            resp = json_request(
+                module="workflow_mgt",
+                actor="WorkflowManager",
+                function="update_workflow_status",
+                payload=work_payload,
+            )
+        except Exception as e:
+            print("Workflow 更新失敗: ", e)
+
         # 2. 處理串流回應
         client = SSEClient(response)
         for event in client.events():
@@ -148,6 +166,7 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
                         text = image_url
                         full_download_url = f"http://{host}{image_url}"
                         work_payload = {
+                            "event_type": "2",
                             "conversation_uid": conversation_uid,
                             "text_content": [{
                                 "type": "image",
@@ -157,6 +176,7 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
                     else:
                         text = answer
                         work_payload = {
+                            "event_type": "2",
                             "conversation_uid": conversation_uid,
                             "text_content": [{
                                 "type": "message",
@@ -203,6 +223,45 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
                     args=None,
                     message=ans_text
                 )
+            
+            # 更新 workflow step & status 3
+            work_payload = {
+                "conversation_uid": conversation_uid,
+                # "workflow_step": "A",
+                "workflow_status": "3"
+            }
+
+            try:
+                resp = json_request(
+                    module="workflow_mgt",
+                    actor="WorkflowManager",
+                    function="update_workflow_status",
+                    payload=work_payload,
+                )
+                work_data = resp.json()
+            except Exception as e:
+                print("Workflow 更新失敗: ", e)
+
+            work_payload = {
+                "event_type": "3",
+                "conversation_uid": conversation_uid,
+                "text_content": [{
+                    "type": "message",
+                    "content": "Finish workflow"
+                }],
+            }
+
+            try:
+                resp = json_request(
+                    module="workflow_mgt",
+                    actor="Producer",
+                    function="dispatch_topic",
+                    payload=work_payload,
+                )
+                print("推播成功:", resp)
+            except Exception as e:
+                print("推播失敗:", e)
+
             return {
                 "status": True,
                 "message": "成功取得資料",

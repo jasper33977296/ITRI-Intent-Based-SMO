@@ -43,6 +43,27 @@ class WorkflowManager:
                 user_content = text_content[0].get("content", "") 
             else:
                 user_content = "" # 或自行定義預設行為 
+                
+            # 更新 workflow status 1
+            work_payload = {
+                "conversation_uid": conversation_uid,
+                "workflow_status": "1"
+            }
+
+            try:
+                resp = json_request(
+                    module="workflow_mgt",
+                    actor="WorkflowManager",
+                    function="update_workflow_status",
+                    payload=work_payload,
+                )
+                work_data = resp.json()
+            except Exception as e:
+                print("Workflow 更新失敗: ", e)
+
+            # 檢查後端回傳是否成功
+            if not work_data.get("status_code", 400):
+                return JsonResponse(work_data, status_code=work_data.get("status_code", 400))
 
             # (2) 呼叫 dify 執行工作流
             result = dify_single_intent_workflow(conversation_uid, user_content)
@@ -76,7 +97,7 @@ class WorkflowManager:
         try:
             # (1) 檢查必填欄位
             payload = json.loads(request.body)
-            required_fields = ["conversation_uid", "workflow_step", "workflow_status"]
+            required_fields = ["conversation_uid", "workflow_status"]
             missing_fields = [f for f in required_fields if f not in payload]
             if missing_fields:
                 return JsonResponse({
@@ -85,13 +106,12 @@ class WorkflowManager:
                 }, status=400)
 			
             conversation_uid = payload["conversation_uid"]
-            workflow_step = payload["workflow_step"]
             workflow_status = payload["workflow_status"]
             
             # (2) 呼叫 metadata_mgt 以更新 workflow step & status
             meta_payload = {
                 "conversation_uid": conversation_uid,
-                "workflow_step": workflow_step,
+                "workflow_step": payload.get("workflow_step"),
                 "workflow_status": workflow_status,
                 "start_time": payload.get("start_time"),
                 "end_time": payload.get("end_time"),
@@ -112,23 +132,13 @@ class WorkflowManager:
                     "message": f"Fail to call metadata_mgt API (get_workflow_metadata): {str(e)}"
                 }, status=502)
 
-            # 檢查後端回傳是否成功 ==還需要更改==
+            # 檢查後端回傳是否成功
             if not meta_data.get("status", False):
-                return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
-
-            # 從回傳資料中取出 step, status
-            workflow_info = meta_data.get("data", {})
-            workflow_step = workflow_info.get("workflow_step", "demo")
-
-            # (3) 根據 step 呼叫對應函式
-            result = dify_single_intent_workflow(conversation_uid=conversation_uid,user_prompt=content)
-
-            text_data = result.get("parsed_data","")
+                return JsonResponse(meta_data, status_code=meta_data.get("status_code", 400))
 
             return JsonResponse({
-                    "event_type": workflow_step,
-                    "conversation_uid": conversation_uid,
-                    "text": text_data
+                "status_code": 200,
+                "message": "Workflow 更新成功"
             })
 
         except Exception as e:

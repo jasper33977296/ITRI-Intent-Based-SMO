@@ -45,12 +45,14 @@ def text_decorator(role: str):
                     event = args[0]
                 if event:
                     payload = event.get("payload", {})
+                    event_type = payload.get("event_type", "")
                     text_content = payload.get("text_content", [])
+
+                    if "3" in event_type:
+                        return await func(self, *args, **kwargs)
 
             # # ---- 若取得 text_dict，嘗試取得 text_content ----
             # # 例： text_dict = { "text_content": [ { "type": "text", "content": "..." } ] }
-            # if isinstance(text_dict, dict):
-            #     text_content = text_dict.get("text_content", None)
             if text_content is not None:
                 create_payload = {
                     "conversation_uid": conversation_uid,
@@ -89,7 +91,10 @@ def text_decorator(role: str):
                                     if "event" in kwargs:
                                         kwargs["event"]["payload"]["text_content"] = updated_text_content
                                     else:
-                                        args = ({"payload": {"text_content": updated_text_content}},) + tuple(args[1:])
+                                        if args and isinstance(args[0], dict) and "payload" in args[0]:
+                                            new_payload = args[0]["payload"].copy()
+                                            new_payload["text_content"] = updated_text_content
+                                            args = ({"payload": new_payload, **{k:v for k,v in args[0].items() if k!="payload"}},) + args[1:]
                                 break
 
                 except Exception as e:

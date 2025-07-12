@@ -25,7 +25,7 @@ class Producer:
         try:
             # (1) 檢查必填欄位
             payload = json.loads(request.body)
-            required_fields = ["conversation_uid", "text_content"]
+            required_fields = ["event_type", "conversation_uid", "text_content"]
             missing_fields = [f for f in required_fields if f not in payload]
             if missing_fields:
                 return JsonResponse({
