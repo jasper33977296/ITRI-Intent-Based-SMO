@@ -32,7 +32,7 @@ class ImageManager:
             missing = [f for f in required_fields if f not in payload]
             if missing:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 400,
                     "message": f"Missing required fields: {', '.join(missing)}"
                 }, status=400)
             
@@ -50,7 +50,7 @@ class ImageManager:
                 meta_data = meta_resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 502,
                     "message": f"Fail to call metadata_mgt: {str(e)}"
                 }, status=502)
 
@@ -75,12 +75,12 @@ class ImageManager:
                 
             except requests.exceptions.RequestException as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to download image from URL {content}: {str(e)}"
                 }, status=500)
             except Exception as e: # 捕獲其他可能的文件寫入錯誤
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to save image file locally: {str(e)}"
                 }, status=500)
 
@@ -91,9 +91,9 @@ class ImageManager:
             }, status=201)
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
 
     @csrf_exempt
     @require_http_methods(["POST"])
@@ -108,7 +108,7 @@ class ImageManager:
 
             if not conversation_uid:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 400,
                     "message": "Missing required field: 'conversation_uid'"
                 }, status=400)
 
@@ -123,11 +123,11 @@ class ImageManager:
                 meta_data = meta_resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 502,
                     "message": f"Fail to call metadata_mgt: {str(e)}"
                 }, status=502)
 
-            if not meta_data.get("status", False):
+            if not meta_data.get("status_code", 400):
                 return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
 
             image_list = []
@@ -150,9 +150,9 @@ class ImageManager:
             }, status=200)
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
 
     @csrf_exempt
     @require_http_methods(["POST"])
@@ -170,7 +170,7 @@ class ImageManager:
 
             if not image_uid:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 400,
                     "message": "Missing required field: 'image_uid'"
                 }, status=400)
 
@@ -185,7 +185,7 @@ class ImageManager:
                 meta_data = meta_resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 502,
                     "message": f"Fail to get image metadata: {str(e)}"
                 }, status=502)
 
@@ -196,7 +196,7 @@ class ImageManager:
 
             if not image_path or not os.path.exists(image_path):
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 404,
                     "message": f"[{image_path}] Image file does not exist"
                 }, status=404)
 
@@ -205,7 +205,7 @@ class ImageManager:
                 delete_file(image_path)
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to delete image file: {str(e)}"
                 }, status=500)
 
@@ -220,11 +220,11 @@ class ImageManager:
                 del_data = del_resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 502,
                     "message": f"Fail to delete image metadata: {str(e)}"
                 }, status=502)
 
-            if not del_data.get("status", False):
+            if not del_data.get("status_code", 400):
                 return JsonResponse(del_data, status=del_data.get("status_code", 400))
 
             return JsonResponse({
@@ -233,9 +233,9 @@ class ImageManager:
             }, status=200)
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
 
     @csrf_exempt 
     @require_http_methods(["POST"])
@@ -249,7 +249,7 @@ class ImageManager:
             missing = [f for f in required_fields if f not in payload]
             if missing:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 400,
                     "message": f"Missing required fields: {', '.join(missing)}"
                 }, status=400)
             

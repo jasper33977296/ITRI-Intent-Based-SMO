@@ -45,7 +45,7 @@ class TextManager:
             missing = [f for f in required_fields if f not in payload]
             if missing:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 400,
                     "message": f"Missing required fields: {', '.join(missing)}"
                 }, status=400)
 
@@ -55,13 +55,14 @@ class TextManager:
 
             if not isinstance(text_array, list):
                 return JsonResponse({
-                    "status": False, "message": "Field 'text_content' must be a list"
+                    "status_code": 400,
+                    "message": "Field 'text_content' must be a list"
                 }, status=400)
 
             for item in text_array:
                 if not isinstance(item, dict) or "type" not in item or "content" not in item:
                     return JsonResponse({
-                        "status": False,
+                        "status_code": 400,
                         "message": "Each element in 'text_content' must have 'type' and 'content'"
                     }, status=400)
 
@@ -76,11 +77,11 @@ class TextManager:
                 conv_meta_data = conv_meta_resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 502,
                     "message": f"Fail to call metadata_mgt (get_conversation_metadata): {str(e)}"
                 }, status=502)
 
-            if not conv_meta_data.get("status", False):
+            if not conv_meta_data.get("status_code", 400):
                 return JsonResponse(conv_meta_data, status=conv_meta_data.get("status_code", 400))
             # **[優化]** 將標題生成邏輯移出迴圈，僅在需要時執行一次
 
@@ -139,7 +140,7 @@ class TextManager:
                         image_uid = result.get("data", {}).get("image_uid")
                         if not image_uid:
                             return JsonResponse({
-                                "status": False,
+                                "status_code": 500,
                                 "message": f"image_uid 不存在於回傳值中: {result}"
                             }, status=500)
 
@@ -147,7 +148,7 @@ class TextManager:
 
                     except Exception as e:
                         return JsonResponse({
-                            "status": False,
+                            "status_code": 500,
                             "message": f"Failed to create image metadata: {str(e)}"
                         }, status=500)
 
@@ -162,11 +163,11 @@ class TextManager:
                 text_meta_data = text_meta_resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 502,
                     "message": f"Fail to call metadata_mgt (create_text_metadata): {str(e)}"
                 }, status=502)
 
-            if not text_meta_data.get("status", False):
+            if not text_meta_data.get("status_code", 400):
                 return JsonResponse(text_meta_data, status=text_meta_data.get("status_code", 400))
 
             data_part = text_meta_data.get("data", {})
@@ -176,7 +177,7 @@ class TextManager:
 
             if not all([text_uid, user_uid, text_path]):
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": "Missing critical data in metadata response (need text_uid, user_uid, text_path)"
                 }, status=500) # 使用 500，因為這是後端服務間的契約問題
 
@@ -189,7 +190,7 @@ class TextManager:
             except Exception as e:
                 # 考慮補償交易：若此步失敗，是否應刪除剛建立的 text metadata？
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to append text_uid to CSV: {str(e)}"
                 }, status=500)
 
@@ -201,13 +202,13 @@ class TextManager:
                 })
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to create/write text JSON: {str(e)}"
                 }, status=500)
 
             # (5) 回傳結果
             return JsonResponse({
-                "status": True,
+                "status_code": 201,
                 "message": "Text created successfully",
                 "data": {
                     "text_uid": text_uid
@@ -215,10 +216,10 @@ class TextManager:
             }, status=201)
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
         except Exception as e:
             # 捕捉所有其他未預期的錯誤
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
 
     @csrf_exempt
     @require_http_methods(["POST"])
@@ -239,7 +240,7 @@ class TextManager:
             payload = json.loads(request.body)
             if "conversation_uid" not in payload:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 400,
                     "message": "Missing required field: conversation_uid"
                 }, status=400)
 
@@ -257,17 +258,17 @@ class TextManager:
                 get_meta_data = resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 502,
                     "message": f"Fail to call metadata_mgt (get_conversation_metadata): {str(e)}"
                 }, status=502)
 
-            if not get_meta_data.get("status", False):
+            if not get_meta_data.get("status_code", 400):
                 return JsonResponse(get_meta_data, status=get_meta_data.get("status_code", 400))
 
             conversation_path = get_meta_data["data"].get("conversation_path")
             if not conversation_path:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 400,
                     "message": "conversation_path not found in metadata"
                 }, status=400)
 
@@ -276,14 +277,14 @@ class TextManager:
                 text_uids = read_text_uids_from_csv(conversation_path)
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to read CSV: {str(e)}"
                 }, status=500)
 
             # 如果 conversation_csv 內沒有任何 text_uid，可直接回傳
             if not text_uids:
                 return JsonResponse({
-                    "status": True,
+                    "status_code": 200,
                     "message": "No text records found in this conversation",
                     "data": []
                 }, status=200)
@@ -293,14 +294,14 @@ class TextManager:
                 data_list = read_text_jsons(conversation_uid, text_uids)
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to read text JSONs: {str(e)}"
                 }, status=500)
 
             # 防範 data_list 可能為空或無內容
             if not data_list:
                 return JsonResponse({
-                    "status": True,
+                    "status_code": 200,
                     "message": "No text JSON files found for this conversation",
                     "data": []
                 }, status=200)
@@ -333,7 +334,7 @@ class TextManager:
             #                 block["content"] = f"[Error calling metadata_mgt for image_uid={image_uid}: {str(e)}]"
             #                 continue
 
-            #             if not img_data.get("status", False):
+            #             if not img_data.get("status_code", 400):
             #                 # 留下錯誤訊息，但可繼續其他 block
             #                 block["content"] = f"[Error: {img_data.get('message', 'Unknown error')}]"
             #                 continue
@@ -354,15 +355,15 @@ class TextManager:
 
             # (5) 回傳最終整理後的 data_list
             return JsonResponse({
-                "status": True,
+                "status_code": 200,
                 "message": "Get text list success",
                 "data": data_list
             }, status=200)
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
 
     @csrf_exempt
     @require_http_methods(["POST"])
@@ -381,7 +382,7 @@ class TextManager:
             payload = json.loads(request.body)
             if "text_uid" not in payload:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 400,
                     "message": "Missing required field: text_uid"
                 }, status=400)
 
@@ -399,17 +400,17 @@ class TextManager:
                 get_meta_data = resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 502,
                     "message": f"Fail to call metadata_mgt (get_text_metadata): {str(e)}"
                 }, status=502)
 
-            if not get_meta_data.get("status", False):
+            if not get_meta_data.get("status_code", 400):
                 return JsonResponse(get_meta_data, status=get_meta_data.get("status_code", 400))
 
             text_path = get_meta_data["data"].get("text_path")
             if not text_path:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 400,
                     "message": "text_path not found in metadata"
                 }, status=400)
 
@@ -421,7 +422,7 @@ class TextManager:
                         text_data = json.load(f)
                 except Exception as e:
                     return JsonResponse({
-                        "status": False,
+                        "status_code": 500,
                         "message": f"Failed to read JSON file: {str(e)}"
                     }, status=500)
 
@@ -445,7 +446,7 @@ class TextManager:
                         return JsonResponse(del_data, status=del_data.get("status_code", 400))
                 except Exception as e:
                     return JsonResponse({
-                        "status": False,
+                        "status_code": 502,
                         "message": f"Fail to delete image metadata: {str(e)}"
                     }, status=502)
 
@@ -454,18 +455,18 @@ class TextManager:
                 delete_file(text_path)
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to remove text JSON file: {str(e)}"
                 }, status=500)
             
             # 5) 回傳成功
             return JsonResponse({
-                "status": True,
+                "status_code": 200,
                 "message": "Text deleted"
             }, status=200)
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
         
