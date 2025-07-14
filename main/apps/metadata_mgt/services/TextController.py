@@ -74,7 +74,7 @@ class TextController:
                     "created_at": text_obj.created_at.isoformat(),
                 }
             }
-        except Conversation.DoesNotExist:
+        except Text.DoesNotExist:
             return {
                 "status_code": 404,
                 "message": f"找不到 text_uid = {text_uid}"
@@ -148,7 +148,7 @@ class TextController:
                     "f_user_uid": str(text_obj.f_user_uid.user_uid)
                 }
             }
-        except Conversation.DoesNotExist:
+        except Text.DoesNotExist:
             return {
                 "status_code": 404,
                 "message": f"找不到 text_uid = {text_uid}"
@@ -171,7 +171,7 @@ class TextController:
                 "status_code": 200,
                 "message": "Text 刪除成功"
             }
-        except Conversation.DoesNotExist:
+        except Text.DoesNotExist:
             return {
                 "status_code": 404,
                 "message": f"找不到 text_uid = {text_uid}"
