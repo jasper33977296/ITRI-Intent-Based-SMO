@@ -29,12 +29,15 @@ class ConversationManager:
         5) 在 Broker 註冊 topic
         """
         try:
-            # 1) 解析 JSON
             payload = json.loads(request.body)
-            if "user_uid" not in payload:
+
+            # 必填欄位檢查
+            required_fields = ["user_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
-                    "status": False,
-                    "message": "Missing field: user_uid"
+                    "status_code": 400,
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
             user_uid = payload["user_uid"]
@@ -54,11 +57,11 @@ class ConversationManager:
                 meta_data = resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Fail to call metadata_mgt API: {str(e)}"
                 }, status=502)
 
-            if not meta_data.get("status", False):
+            if not meta_data.get("status_code", 400):
                 return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
 
             conversation_uid = meta_data["data"]["conversation_uid"]
@@ -78,12 +81,12 @@ class ConversationManager:
                 workflow_data = workflow_resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Fail to call workflow metadata API: {str(e)}"
                 }, status=502)
 
             # 確認回傳結果是否成功
-            if not workflow_data.get("status", False):
+            if not workflow_data.get("status_code", 400):
                 return JsonResponse(workflow_data, status=workflow_data.get("status_code", 400))
 
             # 這裡如果需要 workflow_uid
@@ -94,7 +97,7 @@ class ConversationManager:
                 create_empty_csv(csv_path)
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to create CSV file: {str(e)}"
                 }, status=500)
 
@@ -114,13 +117,13 @@ class ConversationManager:
                     return JsonResponse(topic_data, status=topic_data.get("status_code", 400))
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to register topic (topic_mgt) : {str(e)}"
                 }, status=500)
 
             # 全部成功
             return JsonResponse({
-                "status": True,
+                "status_code": 201,
                 "message": "Conversation created locally (CSV) and workflow metadata created",
                 "data": {
                     "conversation_uid": conversation_uid
@@ -129,9 +132,9 @@ class ConversationManager:
             }, status=201)
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
 
     @csrf_exempt
     @require_http_methods(["POST"])
@@ -150,12 +153,15 @@ class ConversationManager:
         3) 回傳結果
         """
         try:
-            # 1) 解析 JSON，檢查欄位
             payload = json.loads(request.body)
-            if "user_uid" not in payload:
+
+            # 1) 必填欄位檢查
+            required_fields = ["user_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
-                    "status": False,
-                    "message": "Missing field: user_uid"
+                    "status_code": 400,
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
             user_uid = payload["user_uid"]
@@ -174,25 +180,25 @@ class ConversationManager:
                 meta_data = resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 502,
                     "message": f"Fail to call metadata_mgt API: {str(e)}"
                 }, status=502)
 
-            if not meta_data.get("status", False):
+            if not meta_data.get("status_code", 400):
                 # 如果 metadata API 回傳 status = False，直接將其回傳
                 return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
 
             # 3) 回傳取得的對話清單
             return JsonResponse({
-                "status": True,
+                "status_code": 200,
                 "message": "Get conversation list success",
                 "data": meta_data.get("data", [])
             }, status=200)
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
 
     @csrf_exempt
     @require_http_methods(["POST"])
@@ -212,12 +218,16 @@ class ConversationManager:
         try:
             # 1) 解析 JSON, 檢查必填欄位
             payload = json.loads(request.body)
-            if "conversation_uid" not in payload:
-                return JsonResponse({
-                    "status": False,
-                    "message": "Missing field: conversation_uid"
-                }, status=400)
 
+            # 1) 必填欄位檢查
+            required_fields = ["conversation_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
+                return JsonResponse({
+                    "status_code": 400,
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
+                }, status=400)
+            
             conversation_uid = payload["conversation_uid"]
 
             # 2) 呼叫 metadata_mgt: get_conversation_metadata
@@ -232,11 +242,11 @@ class ConversationManager:
                 get_meta_data = resp.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 502,
                     "message": f"Fail to call metadata_mgt API (get_conversation_metadata): {str(e)}"
                 }, status=502)
 
-            if not get_meta_data.get("status", False):
+            if not get_meta_data.get("status_code", 400):
                 return JsonResponse(get_meta_data, status=get_meta_data.get("status_code", 400))
 
             # 取得 CSV 路徑與 user_uid
@@ -244,7 +254,7 @@ class ConversationManager:
             user_uid = get_meta_data["data"].get("user_uid")
             if not conversation_path or not user_uid:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 400,
                     "message": "conversation_path or user_uid not found in metadata"
                 }, status=400)
 
@@ -253,7 +263,7 @@ class ConversationManager:
                 text_uids = read_text_uids_from_csv(conversation_path)
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to read CSV file: {str(e)}"
                 }, status=500)
 
@@ -270,11 +280,11 @@ class ConversationManager:
                     del_text_data = resp_del_text.json()
                 except Exception as e:
                     return JsonResponse({
-                        "status": False,
+                        "status_code": 502,
                         "message": f"Fail to call delete_text for text_uid={text_uid}: {str(e)}"
                     }, status=502)
 
-                if not del_text_data.get("status", False):
+                if not del_text_data.get("status_code", 400):
                     # 即使某個 text 刪除失敗，可選擇直接中斷或繼續嘗試刪除其他 text
                     return JsonResponse(del_text_data, status=del_text_data.get("status_code", 400))
             
@@ -289,11 +299,11 @@ class ConversationManager:
                 del_meta_data = resp_del.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 502,
                     "message": f"Fail to call metadata_mgt API (delete_conversation_metadata): {str(e)}"
                 }, status=502)
 
-            if not del_meta_data.get("status", False):
+            if not del_meta_data.get("status_code", 400):
                 return JsonResponse(del_meta_data, status=del_meta_data.get("status_code", 400))
 
             # 6) 刪除 texts/{conversation_uid} 資料夾 (若裡面已空則快; 若有殘留檔案也能清掉)
@@ -302,7 +312,7 @@ class ConversationManager:
                 delete_folder(text_dir)
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to remove folder texts/{conversation_uid}: {str(e)}"
                 }, status=500)
 
@@ -311,7 +321,7 @@ class ConversationManager:
                 delete_file(conversation_path)
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
+                    "status_code": 500,
                     "message": f"Failed to remove CSV file: {str(e)}"
                 }, status=500)
 
@@ -326,20 +336,20 @@ class ConversationManager:
                 del_meta_data = resp_del.json()
             except Exception as e:
                 return JsonResponse({
-                    "status": False,
-                    "message": f"Fail to call metadata_mgt API (delete_conversation_metadata): {str(e)}"
+                    "status_code": 502,
+                    "message": f"Fail to call topic_mgt API (delete_topic): {str(e)}"
                 }, status=502)
 
-            if not del_meta_data.get("status", False):
+            if not del_meta_data.get("status_code", 400):
                 return JsonResponse(del_meta_data, status=del_meta_data.get("status_code", 400))
 
             # 全部成功
             return JsonResponse({
-                "status": True,
+                "status_code": 200,
                 "message": "Conversation deleted"
             }, status=200)
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)

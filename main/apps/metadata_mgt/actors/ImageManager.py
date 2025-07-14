@@ -13,15 +13,19 @@ class ImageManager:
     def create_image_metadata(request):
         try:
             payload = json.loads(request.body)
-            if "conversation_uid" not in payload:
+
+            # 必填欄位檢查
+            required_fields = ["conversation_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
                     "status_code": 400,
-                    "message": "缺少欄位: conversation_uid"
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
+            
+            # 呼叫 Controller 建立
+            response = ImageController.create_image(payload["conversation_uid"])
 
-            response = ImageController.create_image(
-                conversation_uid=payload["conversation_uid"]
-            )
             return JsonResponse(response, status=response["status_code"])
 
         except json.JSONDecodeError:
@@ -32,7 +36,7 @@ class ImageManager:
         except Exception as e:
             return JsonResponse({
                 "status_code": 500,
-                "message": f"系統錯誤: {str(e)}"
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
             }, status=500)
 
     @csrf_exempt
@@ -41,13 +45,19 @@ class ImageManager:
     def get_image_metadata(request):
         try:
             payload = json.loads(request.body)
-            if "image_uid" not in payload:
+
+            # 必填欄位檢查
+            required_fields = ["image_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
                     "status_code": 400,
-                    "message": "缺少欄位: image_uid"
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
+            # 呼叫 Controller 查詢
             response = ImageController.get_image_metadata_by_uid(payload["image_uid"])
+
             return JsonResponse(response, status=response["status_code"])
 
         except json.JSONDecodeError:
@@ -58,7 +68,7 @@ class ImageManager:
         except Exception as e:
             return JsonResponse({
                 "status_code": 500,
-                "message": f"系統錯誤: {str(e)}"
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
             }, status=500)
 
     @csrf_exempt
@@ -67,13 +77,19 @@ class ImageManager:
     def get_image_metadata_list(request):
         try:
             payload = json.loads(request.body)
-            if "conversation_uid" not in payload:
+
+            # 必填欄位檢查
+            required_fields = ["conversation_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
                     "status_code": 400,
-                    "message": "缺少欄位: conversation_uid"
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
+            # 呼叫 Controller 查詢
             response = ImageController.get_image_list_by_conversation(payload["conversation_uid"])
+            
             return JsonResponse(response, status=response["status_code"])
 
         except json.JSONDecodeError:
@@ -84,7 +100,7 @@ class ImageManager:
         except Exception as e:
             return JsonResponse({
                 "status_code": 500,
-                "message": f"系統錯誤: {str(e)}"
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
             }, status=500)
 
     @csrf_exempt
@@ -93,13 +109,19 @@ class ImageManager:
     def delete_image_metadata(request):
         try:
             payload = json.loads(request.body)
-            if "image_uid" not in payload:
+
+            # 必填欄位檢查
+            required_fields = ["image_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
                     "status_code": 400,
-                    "message": "缺少欄位: image_uid"
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
+            # 呼叫 Controller 查詢
             response = ImageController.delete_image_by_uid(payload["image_uid"])
+            
             return JsonResponse(response, status=response["status_code"])
 
         except json.JSONDecodeError:
@@ -110,5 +132,5 @@ class ImageManager:
         except Exception as e:
             return JsonResponse({
                 "status_code": 500,
-                "message": f"系統錯誤: {str(e)}"
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
             }, status=500)

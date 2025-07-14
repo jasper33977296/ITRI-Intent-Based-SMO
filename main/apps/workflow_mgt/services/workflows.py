@@ -263,35 +263,35 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
                 print("推播失敗:", e)
 
             return {
-                "status": True,
+                "status_code": 200,
                 "message": "成功取得資料",
-                "parsed_data": ans_text,             # 可依需求改變資料結構
+                "data": ans_text,             # 可依需求改變資料結構
             }
         else:
             # 如果根本沒有解析到 workflow_finished_data
             return {
-                "status": False,
+                "status_code": 404,
                 "message": "未找到 workflow_finished 事件",
-                "parsed_data": None,
+                "data": None,
             }
 
     except requests.exceptions.Timeout as e:
         return {
-            "status": False,
+            "status_code": 500,
             "message": f"Request Timeout: {str(e)}",
-            "parsed_data": None
+            "data": None
         }
     except requests.exceptions.RequestException as e:
         # 包含所有 requests 模組可能出現的網路錯誤 (ConnectionError, HTTPError 等)
         return {
-            "status": False,
+            "status_code": 500,
             "message": f"HTTP/Network Error: {str(e)}",
-            "parsed_data": None
+            "data": None
         }
     except Exception as e:
         # 其他非 requests 相關的意外錯誤
         return {
-            "status": False,
+            "status_code": 500,
             "message": f"Unexpected Error: {str(e)}",
-            "parsed_data": None
+            "data": None
         }

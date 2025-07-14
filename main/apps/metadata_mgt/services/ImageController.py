@@ -8,20 +8,20 @@ class ImageController:
     @staticmethod
     def create_image(conversation_uid):
         try:
-            # 驗證 Conversation 是否存在
+            # 1) 驗證 Conversation 是否存在
             try:
                 conversation = Conversation.objects.get(conversation_uid=conversation_uid)
             except ObjectDoesNotExist:
                 return {
                     "status_code": 404,
-                    "message": f"Conversation not found: {conversation_uid}"
+                    "message": f"找不到 conversation_uid = {conversation_uid}"
                 }
 
-            # 建立新 image_uid 與路徑
+            # 2) 建立新 image_uid 與路徑
             new_image_uid = uuid.uuid4()
             image_path = f"images/{conversation_uid}/{new_image_uid}.png"
 
-            # 建立 Image 紀錄
+            # 3) 建立 Image 紀錄
             image_obj = Image.objects.create(
                 image_uid=new_image_uid,
                 image_path=image_path,
@@ -38,11 +38,10 @@ class ImageController:
                     "created_at": image_obj.created_at.isoformat()
                 }
             }
-
         except Exception as e:
             return {
                 "status_code": 500,
-                "message": f"Server error: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
     @staticmethod
@@ -62,12 +61,12 @@ class ImageController:
         except Image.DoesNotExist:
             return {
                 "status_code": 404,
-                "message": f"Image not found: {image_uid}"
+                "message": f"找不到 image_uid = {image_uid}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "message": f"Server error: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
     @staticmethod
@@ -76,7 +75,7 @@ class ImageController:
             if not Conversation.objects.filter(conversation_uid=conversation_uid).exists():
                 return {
                     "status_code": 404,
-                    "message": f"Conversation not found: {conversation_uid}"
+                    "message": f"找不到 conversation_uid = {conversation_uid}"
                 }
 
             images = Image.objects.filter(f_conversation_uid=conversation_uid).order_by('created_at')
@@ -94,11 +93,10 @@ class ImageController:
                 "message": "Image 查詢清單成功",
                 "data": data
             }
-
         except Exception as e:
             return {
                 "status_code": 500,
-                "message": f"Server error: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
     @staticmethod
@@ -113,10 +111,10 @@ class ImageController:
         except Image.DoesNotExist:
             return {
                 "status_code": 404,
-                "message": f"Image not found: {image_uid}"
+                "message": f"找不到 image_uid = {image_uid}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "message": f"Server error: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }

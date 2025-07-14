@@ -67,12 +67,12 @@ class WorkflowManager:
 
             # (2) 呼叫 dify 執行工作流
             result = dify_single_intent_workflow(conversation_uid, user_content)
-            if not result or "parsed_data" not in result:
+            if not result or "data" not in result:
                 return JsonResponse({
                     "status_code": 502,
                     "message": "Failed execute workflow."
                 }, status=502)
-            text_data = result.get("parsed_data","")
+            text_data = result.get("data","")
 
             return JsonResponse({
                 "status_code": 200,
@@ -133,7 +133,7 @@ class WorkflowManager:
                 }, status=502)
 
             # 檢查後端回傳是否成功
-            if not meta_data.get("status", False):
+            if not meta_data.get("status_code", 400):
                 return JsonResponse(meta_data, status_code=meta_data.get("status_code", 400))
 
             return JsonResponse({
@@ -170,7 +170,6 @@ class WorkflowManager:
             if missing_fields:
                 return JsonResponse({
                     "status_code": 400,
-                    "status": False,
                     "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
@@ -185,11 +184,11 @@ class WorkflowManager:
 
             # 最後回傳 HTTP 結果
             return JsonResponse({
-                "status": True,
+                "status_code": 200,
                 "message": "Logger Human in the loop processed successfully",
             }, status=200)
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
