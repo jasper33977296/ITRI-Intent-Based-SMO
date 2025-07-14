@@ -19,6 +19,7 @@ class Broker:
             password=settings.REDIS_PASSWORD,
             db=settings.REDIS_DB
         )
+        self.channel_layer = get_channel_layer() 
 
     def _topic_key(self, conversation_uid: str) -> str:
         """
@@ -38,6 +39,14 @@ class Broker:
         """
         刪除一個對應 conversation_uid 的 Set。
         """
+        group_name = f"topic_{conversation_uid}"
+        async_to_sync(self.channel_layer.group_send)(
+            group_name,
+            {
+                "type": "force_disconnect", 
+                "reason": f"Topic '{conversation_uid}' has been deleted. Disconnecting all clients."
+            }
+        )
         key = self._topic_key(conversation_uid)
         self._redis.delete(key)
 

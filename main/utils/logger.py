@@ -3,12 +3,10 @@ System log utils.
 """
 import os
 import json
-import types
 import traceback
 from functools import wraps
 from datetime import datetime
 from dotenv import load_dotenv
-from django.core.handlers.wsgi import WSGIRequest
 from asgiref.sync import sync_to_async
 
 load_dotenv()
@@ -20,29 +18,10 @@ def ensure_log_folder_exists():
     if not os.path.exists(log_folder_path):
         os.makedirs(log_folder_path)
 
-def detect_source_type(args):
-    """
-    根據 request META 自動判斷來源
-    """
-    request = args[0] if args else None
-    source_type = "Unknown"
-
-    if request and hasattr(request, "META"):
-        meta = request.META
-        has_via = "HTTP_VIA" in meta
-        has_forwarded = "HTTP_X_FORWARDED_FOR" in meta
-
-        if has_via or has_forwarded:
-            source_type = "dify engine"
-        else:
-            source_type = "n8n engine"
-
-    return source_type
-
 def generate_log_content(log_level, status_code, source_type='system', func=None, args=None, message=None):
     """
     根據來源（內部模組、外部系統）產生對應格式的 log 字串
-    - source_type: 'system' | 'dify engine' | 'n8n engine'
+    - source_type: 'system' | 'dify engine'
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -52,9 +31,6 @@ def generate_log_content(log_level, status_code, source_type='system', func=None
         module = func.__module__.split('.')[-3] if func else "Unknown"
         actor = func.__module__.split('.')[-1] if func else "Unknown"
         func_name = func.__name__ if func else "Unknown"
-
-        if func_name == 'human_in_the_loop':
-            source_type = detect_source_type(args)
 
         log_str = f"[{log_level}] [{status_code}] [{source_type}]: {module}/ {actor}/ {func_name} [message]: {message}"
 
@@ -127,7 +103,7 @@ def log_writer(log_level, status_code, source_type='system', func=None, args=Non
     提供給非 decorator 的 log 記錄方式（手動調用）
     - log_level: INFO, ERROR 等
     - status_code: 狀態碼
-    - source_type: 'system' | 'dify engine' | 'n8n engine'
+    - source_type: 'system' | 'dify engine'
     """
     ensure_log_folder_exists()
     log_file_name = f"{datetime.now().strftime('%Y-%m-%d')}_log.txt"

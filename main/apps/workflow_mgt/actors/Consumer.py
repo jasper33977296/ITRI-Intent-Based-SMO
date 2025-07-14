@@ -1,5 +1,5 @@
 from channels.generic.websocket import AsyncConsumer
-from main.utils.ApiKit import  json_request
+from main.utils.ApiKit import  json_request_async
 from main.utils.logger import async_log_writer
 
 class Consumer(AsyncConsumer):
@@ -12,6 +12,14 @@ class Consumer(AsyncConsumer):
         2. 呼叫 WorkflowManager.execute_workflow
         """
 
+        await async_log_writer(
+            log_level="INFO",
+            status_code="200",
+            source_type="Websocket",
+            func=self.send_message,
+            args=[self],
+            message="WebSocket send_message receive"
+        )
         # (1) 檢查必填欄位
         payload = event.get("payload", {})
         required_fields = ["conversation_uid", "text_content"]
@@ -27,7 +35,7 @@ class Consumer(AsyncConsumer):
         conversation_uid = payload["conversation_uid"]
         text_content = payload["text_content"]
         workflow_payload = {"conversation_uid": conversation_uid, "text_content": text_content}
-        json_request(
+        resp = await json_request_async(
             module="workflow_mgt",
             actor="WorkflowManager",
             function="execute_workflow",
@@ -40,7 +48,7 @@ class Consumer(AsyncConsumer):
             source_type="Websocket",
             func=self.send_message,
             args=[self],
-            message="WebSocket send_message success"
+            message=f"WebSocket send_message success:"
         )
 
         return

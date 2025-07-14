@@ -22,8 +22,7 @@ class TextController:
             except ObjectDoesNotExist:
                 return {
                     "status_code": 404,
-                    "status": False,
-                    "message": f"Conversation not found: {conversation_uid}"
+                    "message": f"找不到 conversation_uid = {conversation_uid}"
                 }
 
             # 2) 取得與該 Conversation 綁定的使用者
@@ -44,8 +43,7 @@ class TextController:
 
             return {
                 "status_code": 201,
-                "status": True,
-                "message": "Text created successfully",
+                "message": "Text 創建成功",
                 "data": {
                     "text_uid": str(text_obj.text_uid),
                     "user_uid": str(user.user_uid),
@@ -54,12 +52,10 @@ class TextController:
                     "created_at": text_obj.created_at.isoformat()
                 }
             }
-
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"Server error: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
     @staticmethod
@@ -71,8 +67,7 @@ class TextController:
             text_obj = Text.objects.get(text_uid=text_uid)
             return {
                 "status_code": 200,
-                "status": True,
-                "message": "Get text success",
+                "message": "Text 查詢成功",
                 "data": {
                     "text_uid": str(text_obj.text_uid),
                     "text_path": text_obj.text_path,
@@ -82,14 +77,12 @@ class TextController:
         except Text.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
-                "message": f"Text not found: {text_uid}"
+                "message": f"找不到 text_uid = {text_uid}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"Server error: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
     @staticmethod
@@ -103,8 +96,7 @@ class TextController:
             if not Conversation.objects.filter(conversation_uid=conversation_uid).exists():
                 return {
                     "status_code": 404,
-                    "status": False,
-                    "message": f"Conversation not found: {conversation_uid}"
+                    "message": f"找不到 conversation_uid = {conversation_uid}"
                 }
             
             texts = Text.objects.filter(f_conversation_uid=conversation_uid).order_by('created_at')
@@ -119,16 +111,13 @@ class TextController:
             
             return {
                 "status_code": 200,
-                "status": True,
-                "message": f"Get texts success (count={len(data_list)})",
+                "message": f"成功取得對話下的 Text 清單",
                 "data": data_list
             }
-
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"Server error: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
     @staticmethod
@@ -150,8 +139,7 @@ class TextController:
 
             return {
                 "status_code": 200,
-                "status": True,
-                "message": "Text updated successfully",
+                "message": "Text 更新成功",
                 "data": {
                     "text_uid": str(text_obj.text_uid),
                     "text_path": text_obj.text_path,
@@ -160,19 +148,16 @@ class TextController:
                     "f_user_uid": str(text_obj.f_user_uid.user_uid)
                 }
             }
-
         except Text.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
-                "message": f"Text not found: {text_uid}"
+                "message": f"找不到 text_uid = {text_uid}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"Server error: {str(e)}"
-            }
+                "message": f"系統發生錯誤: {str(e)}"
+            }    
 
     @staticmethod
     def delete_text_by_uid(text_uid):
@@ -184,18 +169,15 @@ class TextController:
             text_obj.delete()
             return {
                 "status_code": 200,
-                "status": True,
-                "message": "Text deleted successfully"
+                "message": "Text 刪除成功"
             }
         except Text.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
-                "message": f"Text not found: {text_uid}"
+                "message": f"找不到 text_uid = {text_uid}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"Server error: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }

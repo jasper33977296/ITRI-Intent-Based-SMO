@@ -39,24 +39,23 @@ class Broker(AsyncWebsocketConsumer):
 				
             conversation_uid = payload["conversation_uid"]
         
-			# # (2) 呼叫 metadata_mgt 以確認 conversation 存在
-            # try:
-            #     resp = json_request(
-            #         module="metadata_mgt",
-            #         actor="ConversationManager",
-            #         function="verify_conversation_exist",
-            #         payload=payload,
-            #     )
-            #     meta_data = resp.json()
-            # except Exception as e:
-            #     return JsonResponse({
-            #         "status_code": 502,
-            #         "message": f"Fail to call metadata_mgt API (verify_conversation_exist): {str(e)}"
-            #     }, status=502)
+			# (2) 呼叫 metadata_mgt 以確認 conversation 存在
+            try:
+                resp = json_request(
+                    module="metadata_mgt",
+                    actor="ConversationManager",
+                    function="verify_conversation_exist",
+                    payload=payload,
+                )
+                meta_data = resp.json()
+            except Exception as e:
+                return JsonResponse({
+                    "status_code": 502,
+                    "message": f"Fail to call metadata_mgt API (verify_conversation_exist): {str(e)}"
+                }, status=502)
             
-			# # ==還需要更改==
-            # if not meta_data.get("status", False):
-            #     return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
+            if not meta_data.get("status_code", 400):
+                return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
             
 			# (3) 註冊 topic
             broker = ServiceBroker()
@@ -116,11 +115,19 @@ class Broker(AsyncWebsocketConsumer):
         await self.accept()
         self.broker = ServiceBroker()
 
-        # # 3) 驗證 topic 是否已註冊
-        # exists = self.broker.topic_exists(self.conversation_uid)
-        # if not exists: 
-        #     await self.close(code=4003, reason="conversation_uid not exist.")
-        #     return
+        # 3) 驗證 topic 是否已註冊
+        exists = self.broker.topic_exists(self.conversation_uid)
+        if not exists: 
+            await self.close(code=4003, reason="conversation_uid not exist.")
+            await async_log_writer(
+                log_level="ERROR",
+                status_code="1000",
+                source_type="Websocket",
+                func=self.connect,
+                args=[self],
+                message="conversation_uid not registe"
+            )
+            return
     
         # 4) 訂閱 topic
         self.broker.subscribe(self.conversation_uid, self.group_name)
@@ -136,8 +143,8 @@ class Broker(AsyncWebsocketConsumer):
 
     async def disconnect(self, code):
         # 1) 取消訂閱 topic
-        self.broker.unsubscribe(self.conversation_uid, self.group_name)
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        self.broker.unsubscribe(self.conversation_uid, self.group_name)
         await async_log_writer(
             log_level="INFO",
             status_code="200",
@@ -145,7 +152,23 @@ class Broker(AsyncWebsocketConsumer):
             func=self.disconnect,
             args=[self],
             message="WebSocket disconnect success"
+        ) 
+
+    async def force_disconnect(self, event):
+        """
+        Receives a force disconnect message from the channel layer and closes the current WebSocket connection.
+        This method name 'force_disconnect' must match the 'type' in group_send.
+        """
+        reason = event.get("reason", "Topic was deleted by admin.")
+        await async_log_writer(
+            log_level="INFO",
+            status_code="200",
+            source_type="Websocket",
+            func=self.force_disconnect,
+            args=[self],
+            message=f"Received force disconnect signal for topic: {self.conversation_uid}. Reason: {reason}"
         )
+        await self.close(code=4004, reason=reason)
 
     # -------- WebSocket 進來的資料（前端或其他 WS Client） --------
     @text_decorator(role="user")

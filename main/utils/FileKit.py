@@ -3,6 +3,7 @@ import re
 import csv
 import json
 import shutil
+from pathlib import Path
 
 
 def create_empty_csv(file_path: str) -> None:
@@ -105,6 +106,9 @@ def create_json_file(json_path: str, content: dict) -> None:
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(content, f, ensure_ascii=False, indent=2)
 
+def create_folder(folder_path):
+    os.makedirs(folder_path, exist_ok=True)
+
 def delete_folder(folder_path: str):
     """
     刪除指定資料夾（含其子檔案與子資料夾）
@@ -116,8 +120,14 @@ def delete_file(file_path: str):
     """
     刪除指定檔案
     """
-    if os.path.exists(file_path):
-        os.remove(file_path)
+    file_path_obj = Path(file_path)
+    if os.path.exists(file_path_obj):
+        os.remove(file_path_obj)
+        
+        # 取得父資料夾
+        parent_directory = file_path_obj.parent
+        if parent_directory.is_dir() and not list(parent_directory.iterdir()):
+            os.rmdir(parent_directory)
 
 def _remove_reason_json(content: str) -> str:
     """

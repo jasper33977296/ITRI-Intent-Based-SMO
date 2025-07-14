@@ -5,6 +5,8 @@ from openai import OpenAI
 from main.apps.metadata_mgt.services.ConversationController import ConversationController
 
 from main.utils.logger import log_writer
+from main.utils.ApiKit import json_request
+from sseclient import SSEClient
 
 def text_analysis(user_prompt):
     """
@@ -112,8 +114,7 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
         "auto_generate_name": True
     }
     workflow_finished_data = None
-    ans_text = ""
-    raw_response_data = []
+    image_url = "" # 用於儲存圖片 URL
 
     try:
         # 1. 呼叫 dify_workflow
@@ -122,24 +123,86 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
             f"http://{host}/v1/chat-messages",
             headers=headers,
             json=payload,
-            timeout=60
+            timeout=60,
+            stream=True
         )
 
-        # 若 HTTP 狀態碼非 2xx，raise_for_status() 會丟出例外
-        response.raise_for_status()
+        # 更新 workflow step & status 2
+        work_payload = {
+            "conversation_uid": conversation_uid,
+            # "workflow_step": "A",
+            "workflow_status": "2"
+        }
+
+        try:
+            resp = json_request(
+                module="workflow_mgt",
+                actor="WorkflowManager",
+                function="update_workflow_status",
+                payload=work_payload,
+            )
+        except Exception as e:
+            print("Workflow 更新失敗: ", e)
 
         # 2. 處理串流回應
-        for line in response.text.splitlines():
-            raw_response_data.append(line)  # 儲存每一行原始字串 (除錯需要時可查看)
-            if line.startswith("data: "):
-                try:
-                    json_data = json.loads(line[6:])  # 移除 "data: " 並轉為 JSON
-                    if json_data.get("event") == "workflow_finished":
-                        workflow_finished_data = json_data
-                        break  # 僅取第一個 workflow_finished 事件
-                except json.JSONDecodeError:
-                    # 若其中一行 JSON 解析失敗
-                    pass
+        client = SSEClient(response)
+        for event in client.events():
+            try:
+                data = json.loads(event.data)
+                node_event = data.get("event", "")
+                node_type = data.get("data", {}).get("node_type", "")
+                node_title = data.get("data", {}).get("title", "")
+
+                if node_event == "node_finished" and node_type == "answer" and "直接回覆" in node_title:
+                    answer = data.get("data", {}).get("outputs", {}).get("answer", "")
+                    files_list  = data.get("data", {}).get("outputs", {}).get("files", [])
+
+                    if files_list and isinstance(files_list, list) and len(files_list) > 0:
+                        image_url = files_list[0].get("url", "")
+                    else:
+                        image_url = "" # 如果 files_list 為空或不符合預期，則清空 image_url
+
+                    if image_url != "":
+                        text = image_url
+                        full_download_url = f"http://{host}{image_url}"
+                        work_payload = {
+                            "event_type": "2",
+                            "conversation_uid": conversation_uid,
+                            "text_content": [{
+                                "type": "image",
+                                "content": full_download_url
+                            }],
+                        }
+                    else:
+                        text = answer
+                        work_payload = {
+                            "event_type": "2",
+                            "conversation_uid": conversation_uid,
+                            "text_content": [{
+                                "type": "message",
+                                "content": text
+                            }],
+                        }
+
+                    try:
+                        resp = json_request(
+                            module="workflow_mgt",
+                            actor="Producer",
+                            function="dispatch_topic",
+                            payload=work_payload,
+                        )
+                        print("推播成功:", resp)
+                    except Exception as e:
+                        print("推播失敗:", e)
+
+                elif node_event == "workflow_finished":
+                    workflow_finished_data = data
+                    break
+
+            except json.JSONDecodeError as e:
+                print(f"JSON 解析錯誤: {e}, 原始數據: {event.data}")
+            except Exception as e:
+                print(f"處理事件時發生錯誤: {e}, 原始數據: {event.data}")
 
         # 3. 整理解析結果
         if workflow_finished_data:
@@ -160,36 +223,75 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
                     args=None,
                     message=ans_text
                 )
+            
+            # 更新 workflow step & status 3
+            work_payload = {
+                "conversation_uid": conversation_uid,
+                # "workflow_step": "A",
+                "workflow_status": "3"
+            }
+
+            try:
+                resp = json_request(
+                    module="workflow_mgt",
+                    actor="WorkflowManager",
+                    function="update_workflow_status",
+                    payload=work_payload,
+                )
+                work_data = resp.json()
+            except Exception as e:
+                print("Workflow 更新失敗: ", e)
+
+            work_payload = {
+                "event_type": "3",
+                "conversation_uid": conversation_uid,
+                "text_content": [{
+                    "type": "message",
+                    "content": "Finish workflow"
+                }],
+            }
+
+            try:
+                resp = json_request(
+                    module="workflow_mgt",
+                    actor="Producer",
+                    function="dispatch_topic",
+                    payload=work_payload,
+                )
+                print("推播成功:", resp)
+            except Exception as e:
+                print("推播失敗:", e)
+
             return {
-                "status": True,
+                "status_code": 200,
                 "message": "成功取得資料",
-                "parsed_data": ans_text,             # 可依需求改變資料結構
+                "data": ans_text,             # 可依需求改變資料結構
             }
         else:
             # 如果根本沒有解析到 workflow_finished_data
             return {
-                "status": False,
+                "status_code": 404,
                 "message": "未找到 workflow_finished 事件",
-                "parsed_data": None,
+                "data": None,
             }
 
     except requests.exceptions.Timeout as e:
         return {
-            "status": False,
+            "status_code": 500,
             "message": f"Request Timeout: {str(e)}",
-            "parsed_data": None
+            "data": None
         }
     except requests.exceptions.RequestException as e:
         # 包含所有 requests 模組可能出現的網路錯誤 (ConnectionError, HTTPError 等)
         return {
-            "status": False,
+            "status_code": 500,
             "message": f"HTTP/Network Error: {str(e)}",
-            "parsed_data": None
+            "data": None
         }
     except Exception as e:
         # 其他非 requests 相關的意外錯誤
         return {
-            "status": False,
+            "status_code": 500,
             "message": f"Unexpected Error: {str(e)}",
-            "parsed_data": None
+            "data": None
         }

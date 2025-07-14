@@ -14,13 +14,12 @@ class ConversationController:
           格式: {CONVERSATION_FOLDER_PATH}/{user_uid}/{conversation_uid}.json
 
         Input:
-            f_user_uid: 使用者的 user_uid (UUID)
+            user_uid: 使用者的 user_uid (UUID)
             conversation_name: (選填) 對話顯示名稱
 
         Output:
             dict: {
                "status_code": <int>,
-               "status": <bool>,
                "message": <str>,
                "data": {...} (若成功建立則回傳對應資料)
             }
@@ -32,7 +31,6 @@ class ConversationController:
             except ObjectDoesNotExist:
                 return {
                     "status_code": 404,
-                    "status": False,
                     "message": f"找不到 user_uid = {f_user_uid}"
                 }
 
@@ -51,8 +49,7 @@ class ConversationController:
 
             return {
                 "status_code": 201,
-                "status": True,
-                "message": "Conversation created successfully",
+                "message": "成功創建對話",
                 "data": {
                     "conversation_uid": str(conversation.conversation_uid),
                     "user_uid": str(conversation.f_user_uid.user_uid),
@@ -62,11 +59,9 @@ class ConversationController:
                     "updated_at": conversation.updated_at.isoformat()
                 }
             }
-
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
                 "message": f"系統發生錯誤: {str(e)}"
             }
 
@@ -79,7 +74,6 @@ class ConversationController:
             conversation = Conversation.objects.get(conversation_uid=conversation_uid)
             return {
                 "status_code": 200,
-                "status": True,
                 "message": "成功取得對話",
                 "data": {
                     "conversation_uid": str(conversation.conversation_uid),
@@ -93,17 +87,14 @@ class ConversationController:
         except Conversation.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
                 "message": f"找不到 conversation_uid = {conversation_uid}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
                 "message": f"系統發生錯誤: {str(e)}"
             }
 
-    
     @staticmethod
     def get_user_conversation_metadata_list(user_uid):
         """
@@ -114,7 +105,6 @@ class ConversationController:
             if not User.objects.filter(user_uid=user_uid).exists():
                 return {
                     "status_code": 404,
-                    "status": False,
                     "message": f"找不到 user_uid = {user_uid}"
                 }
 
@@ -135,15 +125,12 @@ class ConversationController:
 
             return {
                 "status_code": 200,
-                "status": True,
                 "message": "成功取得使用者所有對話",
                 "data": data_list
             }
-
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
                 "message": f"系統發生錯誤: {str(e)}"
             }
 
@@ -159,19 +146,16 @@ class ConversationController:
 
             return {
                 "status_code": 200,
-                "status": True,
-                "message": "Update conversation name success"
+                "message": "成功更新對話名稱"
             }
         except Conversation.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
-                "message": f"Can't find conversation_uid = {conversation_uid}"
+                "message": f"找不到 conversation_uid = {conversation_uid}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
                 "message": f"系統發生錯誤: {str(e)}"
             }    
 
@@ -185,19 +169,16 @@ class ConversationController:
             conversation.delete()
             return {
                 "status_code": 200,
-                "status": True,
-                "message": "刪除對話成功"
+                "message": "成功刪除對話"
             }
         except Conversation.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
                 "message": f"找不到 conversation_uid = {conversation_uid}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
                 "message": f"系統發生錯誤: {str(e)}"
             }
         
@@ -210,20 +191,17 @@ class ConversationController:
             conversation = Conversation.objects.get(conversation_uid=conversation_uid)
             return {
                 "status_code": 200,
-                "status": True,
-                "message": "取得 Dify conversation ID 成功",
+                "message": "成功取得 Dify conversation ID",
                 "data": conversation.dify_conversation_id
             }
         except Conversation.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
-                "message": f"Can't find conversation_uid = {conversation_uid}"
+                "message": f"找不到 conversation_uid = {conversation_uid}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
                 "message": f"系統發生錯誤: {str(e)}"
             }
 
@@ -239,18 +217,15 @@ class ConversationController:
 
             return {
                 "status_code": 200,
-                "status": True,
-                "message": "Update Dify conversation ID success"
+                "message": "成功更新 Dify conversation ID"
             }
         except Conversation.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
-                "message": f"Can't find conversation_uid = {conversation_uid}"
+                "message": f"找不到 conversation_uid = {conversation_uid}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
                 "message": f"系統發生錯誤: {str(e)}"
             }

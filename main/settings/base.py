@@ -165,3 +165,13 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# BASE_DIR 現在正確指向了 'ITRI-Intent-Based-SMO'
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# 定義媒體檔案的 URL 前綴，前端將通過這個 URL 訪問媒體檔案
+MEDIA_URL = '/media/'
+
+# 定義媒體檔案在伺服器上的實際儲存路徑
+# 這會將檔案儲存在你的專案根目錄下的 'media' 資料夾中
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

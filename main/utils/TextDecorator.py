@@ -34,7 +34,7 @@ def text_decorator(role: str):
                     try:
                         data = json.loads(text_data)
                         # receive(text_data=...)，text_data = { ..., "text_content": [...] }
-                        text_content = data.get("text_content", {})
+                        text_content = data.get("text_content", [])
                     except Exception:
                         pass  # 忽略 JSON 解析失敗
 
@@ -45,12 +45,14 @@ def text_decorator(role: str):
                     event = args[0]
                 if event:
                     payload = event.get("payload", {})
-                    text_content = payload.get("text_content", {})
+                    event_type = payload.get("event_type", "")
+                    text_content = payload.get("text_content", [])
+
+                    if "3" in event_type:
+                        return await func(self, *args, **kwargs)
 
             # # ---- 若取得 text_dict，嘗試取得 text_content ----
             # # 例： text_dict = { "text_content": [ { "type": "text", "content": "..." } ] }
-            # if isinstance(text_dict, dict):
-            #     text_content = text_dict.get("text_content", None)
             if text_content is not None:
                 create_payload = {
                     "conversation_uid": conversation_uid,
@@ -59,16 +61,42 @@ def text_decorator(role: str):
                 }
                 try:
                     # 使用您提供的 json_request_async 進行非同步 API 呼叫
-                    resp = await json_request_async(
+                    text_uid_resp = await json_request_async(
                         module="conversation_mgt",
                         actor="TextManager",
                         function="create_text",
                         payload=create_payload
                     )
-                    # 根據需要，您可以檢查 resp.status_code, resp.json() 等
-                    # example:
-                    # result = resp.json()
-                    # print("[text_decorator] Response from text_mgt:", result)
+
+                    if any(block.get("type") == "image" for block in text_content):
+                        text_uid_result = text_uid_resp.json()
+                        text_uid = text_uid_result.get("data", {}).get("text_uid", "")
+
+                        text_list_resp  = await json_request_async(
+                            module="conversation_mgt",
+                            actor="TextManager",
+                            function="get_text_list",
+                            payload={"conversation_uid": conversation_uid}
+                        )
+                        text_list_result = text_list_resp.json()
+                        text_data_list = text_list_result.get("data", [])
+
+                        for text_record  in text_data_list :
+                            if text_uid == text_record.get("text_uid"):
+                                # 將 text_content 替換為最新（含 image_uid）
+                                updated_text_content = text_record.get("text_content", [])
+
+                                # 將更新過的 text_content 放回原始的 args 或 kwargs 讓下游用到
+                                if func.__name__ == "broker_message":
+                                    if "event" in kwargs:
+                                        kwargs["event"]["payload"]["text_content"] = updated_text_content
+                                    else:
+                                        if args and isinstance(args[0], dict) and "payload" in args[0]:
+                                            new_payload = args[0]["payload"].copy()
+                                            new_payload["text_content"] = updated_text_content
+                                            args = ({"payload": new_payload, **{k:v for k,v in args[0].items() if k!="payload"}},) + args[1:]
+                                break
+
                 except Exception as e:
                     print(f"[text_decorator] Failed to create text via API: {e}")
 
