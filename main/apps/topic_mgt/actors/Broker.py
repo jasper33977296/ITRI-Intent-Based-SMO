@@ -54,7 +54,7 @@ class Broker(AsyncWebsocketConsumer):
                     "message": f"Fail to call metadata_mgt API (verify_conversation_exist): {str(e)}"
                 }, status=502)
             
-            if not meta_data.get("status", False):
+            if not meta_data.get("status_code", 400):
                 return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
             
 			# (3) 註冊 topic
