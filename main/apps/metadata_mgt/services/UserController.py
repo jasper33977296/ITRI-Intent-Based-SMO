@@ -7,7 +7,7 @@ import django.utils.timezone as timezone
 class UserController:
 
     @staticmethod
-    def create_user(user_name, user_password, user_email, user_role=None):
+    def create_user(user_uname, user_password, user_uemail, user_role=None):
         """
         創建新使用者。
         """
@@ -16,9 +16,9 @@ class UserController:
             hashed_password = make_password(user_password)
 
             user = User(
-                user_name=user_name,
+                user_uname=user_uname,
                 user_password=hashed_password,
-                user_email=user_email,
+                user_uemail=user_uemail,
                 user_role=user_role
             )
             user.save()
@@ -54,23 +54,22 @@ class UserController:
             }
 
     @staticmethod
-    def login_user(username, userpassword):
+    def login_user(user_uname, user_password):
         """
         使用者登入邏輯：
-          1. 根據 username 查詢使用者
+          1. 根據 user_uname 查詢使用者
           2. 驗證密碼
           3. 更新最後登入時間
           4. 回傳結果
         """
         try:
-            # 1) 根據 username 取出使用者 (若 Model 欄位叫 user_name，就用 user_name=username)
-            user = User.objects.get(user_name=username)
+            # 1) 根據 user_uname 取出使用者 (若 Model 欄位叫 user_name，就用 user_uname=user_uname)
+            user = User.objects.get(user_uname=user_uname)
             
             # 2) 驗證密碼 (若 user_password 內存放的是加密後的密碼，需用 check_password)
-            if not check_password(userpassword, user.user_password):
+            if not check_password(user_password, user.user_password):
                 return {
                     "status_code": 400,
-                    "status": False,
                     "message": "Invalid password"
                 }
             
@@ -81,8 +80,7 @@ class UserController:
             # 4) 回傳成功資訊
             return {
                 "status_code": 200,
-                "status": True,
-                "message": "Login successful",
+                "message": "使用者登入成功",
                 "data": {
                     "user_uid": str(user.user_uid),
                     "last_login_time": (
@@ -96,46 +94,41 @@ class UserController:
             # 找不到使用者
             return {
                 "status_code": 404,
-                "status": False,
-                "message": "User does not exist"
+                "message": f"找不到 User"
             }
 
         except Exception as e:
             # 其他預期外錯誤
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"Server Error: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
     @staticmethod
-    def get_user_by_name(user_name):
+    def get_user_by_name(user_uname):
         """
-        根據 user_name 獲取使用者。
+        根據 user_uname 獲取使用者。
         """
         try:
-            user = User.objects.get(user_name=user_name)
+            user = User.objects.get(user_uname=user_uname)
             return {
                 "status_code": 200,
-                "status": True,
                 "message": (
                     f"使用者查詢成功 "
-                    f"(ID={user.user_id}, name={user.user_name}, email={user.user_email})"
+                    f"(ID={user.user_id}, name={user.user_uname}, email={user.user_uemail})"
                 )
             }
 
         except ObjectDoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
-                "message": "使用者不存在"
+                "message": f"找不到 User"
             }
 
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"伺服器內部錯誤: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
 
@@ -153,29 +146,25 @@ class UserController:
 
             return {
                 "status_code": 200,
-                "status": True,
                 "message": f"使用者更新成功"
             }
 
         except ObjectDoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
-                "message": "使用者不存在"
+                "message": f"找不到 User"
             }
 
         except ValidationError as e:
             return {
                 "status_code": 400,
-                "status": False,
                 "message": f"驗證失敗: {e.message_dict}"
             }
 
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"伺服器內部錯誤: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
 
@@ -189,20 +178,17 @@ class UserController:
             user.delete()
             return {
                 "status_code": 200,
-                "status": True,
-                "message": f"使用者已刪除 (ID={user_uid})"
+                "message": "使用者刪除成功"
             }
 
         except ObjectDoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
-                "message": "使用者不存在"
+                "message": f"找不到 User"
             }
 
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"伺服器內部錯誤: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }

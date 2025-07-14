@@ -22,7 +22,6 @@ class WorkflowController:
             if hasattr(conversation_obj, 'workflow'):
                 return {
                     "status_code": 400,
-                    "status": False,
                     "message": "該 Conversation 已有 Workflow，不可重複建立 (一對一限制)"
                 }
 
@@ -38,7 +37,6 @@ class WorkflowController:
 
             return {
                 "status_code": 201,
-                "status": True,
                 "message": "Workflow 建立成功",
                 "data": {
                     "workflow_id": workflow.workflow_id
@@ -48,27 +46,23 @@ class WorkflowController:
         except Conversation.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
                 "message": "指定的 Conversation 不存在，無法建立 Workflow"
             }
         except IntegrityError as e:
             # 若 DB 已存在該 conversation_uid 的 workflow，unique constraint 會報錯
             return {
                 "status_code": 400,
-                "status": False,
                 "message": f"建立失敗，該 Conversation 已綁定 Workflow 或其他資料庫錯誤: {str(e)}"
             }
         except ValidationError as e:
             return {
                 "status_code": 400,
-                "status": False,
                 "message": f"驗證失敗: {e.message_dict}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"伺服器內部錯誤: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
     @staticmethod
@@ -84,7 +78,6 @@ class WorkflowController:
 
             return {
                 "status_code": 200,
-                "status": True,
                 "message": "查詢 Workflow 成功",
                 "data": {
                     "workflow_id": workflow.workflow_id,
@@ -98,20 +91,17 @@ class WorkflowController:
         except Conversation.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
                 "message": "指定的 Conversation 不存在"
             }
         except Workflow.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
                 "message": "尚未為該 Conversation 建立 Workflow"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"伺服器內部錯誤: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
     @staticmethod
@@ -132,39 +122,33 @@ class WorkflowController:
             workflow.save()
             return {
                 "status_code": 200,
-                "status": True,
                 "message": "Workflow 更新成功"
             }
 
         except Conversation.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
                 "message": "指定的 Conversation 不存在"
             }
         except Workflow.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
                 "message": "尚未為該 Conversation 建立 Workflow"
             }
         except IntegrityError as e:
             return {
                 "status_code": 400,
-                "status": False,
                 "message": f"更新失敗: {str(e)}"
             }
         except ValidationError as e:
             return {
                 "status_code": 400,
-                "status": False,
                 "message": f"驗證失敗: {e.message_dict}"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"伺服器內部錯誤: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }
 
     @staticmethod
@@ -179,25 +163,21 @@ class WorkflowController:
             workflow.delete()
             return {
                 "status_code": 200,
-                "status": True,
                 "message": f"Workflow 已刪除 (conversation_uid={conversation_uid})"
             }
 
         except Conversation.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
                 "message": "指定的 Conversation 不存在"
             }
         except Workflow.DoesNotExist:
             return {
                 "status_code": 404,
-                "status": False,
                 "message": "尚未為該 Conversation 建立 Workflow"
             }
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
-                "message": f"伺服器內部錯誤: {str(e)}"
+                "message": f"系統發生錯誤: {str(e)}"
             }

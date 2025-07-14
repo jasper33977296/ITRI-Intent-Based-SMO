@@ -33,13 +33,15 @@ class WorkflowManager:
         try:
             payload = json.loads(request.body)
 
-            # 1) 驗證必填欄位
-            if "conversation_uid" not in payload:
+            # 必填欄位檢查
+            required_fields = ["conversation_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
-                    "status": False,
-                    "message": "conversation_uid 為必填"
+                    "status_code": 400,
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
-
+            
             # 2) 取出參數，若沒給則使用預設
             conversation_uid = payload["conversation_uid"]
             workflow_step = payload.get("workflow_step", "A")
@@ -54,10 +56,15 @@ class WorkflowManager:
             return JsonResponse(result, status=result["status_code"])
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({
+                "status_code": 400,
+                "message": "無效的 JSON 格式"
+            }, status=400)
         except Exception as e:
-            # 記錄錯誤訊息到 logger
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({
+                "status_code": 500,
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
+            }, status=500)
 
     @csrf_exempt
     @require_http_methods(["POST"])
@@ -74,20 +81,31 @@ class WorkflowManager:
         """
         try:
             payload = json.loads(request.body)
-            if "conversation_uid" not in payload:
+
+            # 必填欄位檢查
+            required_fields = ["conversation_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
-                    "status": False,
-                    "message": "conversation_uid 為必填"
+                    "status_code": 400,
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
             # 呼叫 Controller 查詢
             result = WorkflowController.get_workflow_by_conversation(payload["conversation_uid"])
+            
             return JsonResponse(result, status=result["status_code"])
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({
+                "status_code": 400,
+                "message": "無效的 JSON 格式"
+            }, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({
+                "status_code": 500,
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
+            }, status=500)
 
     @csrf_exempt
     @require_http_methods(["POST"])
@@ -109,22 +127,33 @@ class WorkflowManager:
         """
         try:
             payload = json.loads(request.body)
-            if "conversation_uid" not in payload:
+
+            # 必填欄位檢查
+            required_fields = ["conversation_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
-                    "status": False,
-                    "message": "缺少conversation_uid"
+                    "status_code": 400,
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
             conversation_uid = payload.pop("conversation_uid")
 
             # 其餘欄位都視為可更新參數，丟到 Controller
             result = WorkflowController.update_workflow(conversation_uid, **payload)
+
             return JsonResponse(result, status=result["status_code"])
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({
+                "status_code": 400,
+                "message": "無效的 JSON 格式"
+            }, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({
+                "status_code": 500,
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
+            }, status=500)
 
     @csrf_exempt
     @require_http_methods(["POST"])
@@ -141,16 +170,28 @@ class WorkflowManager:
         """
         try:
             payload = json.loads(request.body)
-            if "conversation_uid" not in payload:
+
+            # 必填欄位檢查
+            required_fields = ["conversation_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
-                    "status": False,
-                    "message": "conversation_uid 為必填"
+                    "status_code": 400,
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
+            # 呼叫 Controller 刪除
             result = WorkflowController.delete_workflow(payload["conversation_uid"])
+
             return JsonResponse(result, status=result["status_code"])
 
         except json.JSONDecodeError:
-            return JsonResponse({"status": False, "message": "Invalid JSON"}, status=400)
+            return JsonResponse({
+                "status_code": 400,
+                "message": "無效的 JSON 格式"
+            }, status=400)
         except Exception as e:
-            return JsonResponse({"status": False, "message": str(e)}, status=500)
+            return JsonResponse({
+                "status_code": 500,
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
+            }, status=500)

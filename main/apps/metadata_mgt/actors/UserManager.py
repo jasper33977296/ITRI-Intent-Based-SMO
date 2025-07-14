@@ -25,7 +25,6 @@ class UserManager:
                 "message": "Hello World"
             }, status=200)
         except Exception as e:
-            # log_writer(log_writer(log_level="ERROR", message=str(e)))
             return JsonResponse({
                 "status_code": 500,
                 "status": False,
@@ -42,38 +41,33 @@ class UserManager:
         try:
             payload = json.loads(request.body)
 
-            required_fields = ["username", "password", "email"]
+            # 必填欄位檢查
+            required_fields = ["user_uname", "user_password", "user_uemail"]
             missing_fields = [f for f in required_fields if f not in payload]
             if missing_fields:
                 return JsonResponse({
                     "status_code": 400,
-                    "status": False,
                     "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
+            # 呼叫 Controller 建立
             response = UserController.create_user(
-                user_name=payload['username'],
-                user_password=payload['password'],
-                user_email=payload['email']
+                user_uname=payload['user_uname'],
+                user_password=payload['user_password'],
+                user_uemail=payload['user_uemail']
             )
-
-            # log_writer(log_writer(log_level="INFO" if response["status"] else "ERROR", message=response["message"]))
 
             return JsonResponse(response, status=response["status_code"])
 
-        except json.JSONDecodeError as e:
-            # log_writer(log_writer(log_level="ERROR", message=f"JSONDecodeError: {str(e))}")
+        except json.JSONDecodeError:
             return JsonResponse({
                 "status_code": 400,
-                "status": False,
                 "message": "無效的 JSON 格式"
             }, status=400)
         except Exception as e:
-            # log_writer(log_writer(log_level="ERROR", message=str(e)))
             return JsonResponse({
                 "status_code": 500,
-                "status": False,
-                "message": f"{str(e)}"
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
             }, status=500)
 
     @csrf_exempt
@@ -84,36 +78,32 @@ class UserManager:
             payload = json.loads(request.body)
 
             # 檢查必要欄位
-            required_fields = ['username', 'password']
-            for field in required_fields:
-                if field not in payload:
-                    return JsonResponse({
-                        "status": "error",
-                        "message": f"Missing required field: {field}"
-                    }, status=400)
+            required_fields = ['user_uname', 'user_password']
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
+                return JsonResponse({
+                    "status_code": 400,
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
+                }, status=400)
 
             # 呼叫 Controller 登入邏輯
             response = UserController.login_user(
-                username=payload['username'],
-                userpassword=payload['password']
+                user_uname=payload['user_uname'],
+                user_password=payload['user_password']
             )
 
-            # 使用 Controller 回傳的 status_code 作為 HTTP 回應碼
             return JsonResponse(response, status=response["status_code"])
 
         except json.JSONDecodeError:
             return JsonResponse({
-                "status": "error",
-                "message": "Invalid JSON format"
+                "status_code": 400,
+                "message": "無效的 JSON 格式"
             }, status=400)
-
         except Exception as e:
             return JsonResponse({
-                "status": "error",
-                "message": str(e)
+                "status_code": 500,
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
             }, status=500)
-
-           
 
     @csrf_exempt
     @require_http_methods(["POST"])
@@ -124,33 +114,30 @@ class UserManager:
         """
         try:
             payload = json.loads(request.body)
-            user_name = payload.get("user_name")
-            if not user_name:
+
+            # 必填欄位檢查
+            required_fields = ["user_uname"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
                     "status_code": 400,
-                    "status": False,
-                    "message": "缺少 user_name"
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
-            response = UserController.get_user_by_name(user_name)
-
-            # log_writer(log_writer(log_level="INFO" if response["status"] else "ERROR", message=response["message"]))
+            # 呼叫 Controller 查詢
+            response = UserController.get_user_by_name(payload["user_uname"])
 
             return JsonResponse(response, status=response["status_code"])
 
-        except json.JSONDecodeError as e:
-            # log_writer(log_writer(log_level="ERROR", message=f"JSONDecodeError: {str(e))}")
+        except json.JSONDecodeError:
             return JsonResponse({
                 "status_code": 400,
-                "status": False,
                 "message": "無效的 JSON 格式"
             }, status=400)
         except Exception as e:
-            # log_writer(log_writer(log_level="ERROR", message=str(e)))
             return JsonResponse({
                 "status_code": 500,
-                "status": False,
-                "message": "系統發生錯誤，請稍後再試"
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
             }, status=500)
 
     @csrf_exempt
@@ -162,36 +149,32 @@ class UserManager:
         """
         try:
             payload = json.loads(request.body)
-            user_uid = payload.get("user_uid")
-            if not user_uid:
+
+            # 必填欄位檢查
+            required_fields = ["user_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
                     "status_code": 400,
-                    "status": False,
-                    "message": "缺少 user_uid"
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
 
-            update_fields = {
-                k: v for k, v in payload.items() if k != "user_uid"
-            }
-            response = UserController.update_user(user_uid, **update_fields)
-
-            # log_writer(log_writer(log_level="INFO" if response["status"] else "ERROR", message=response["message"]))
+            update_fields = {k: v for k, v in payload.items() if k != "user_uid"}
+            
+            # 呼叫 Controller 更新
+            response = UserController.update_user(payload.get("user_uid"), **update_fields)
 
             return JsonResponse(response, status=response["status_code"])
 
-        except json.JSONDecodeError as e:
-            # log_writer(log_writer(log_level="ERROR", message=f"JSONDecodeError: {str(e))}")
+        except json.JSONDecodeError:
             return JsonResponse({
                 "status_code": 400,
-                "status": False,
                 "message": "無效的 JSON 格式"
             }, status=400)
         except Exception as e:
-            # log_writer(log_writer(log_level="ERROR", message=str(e)))
             return JsonResponse({
                 "status_code": 500,
-                "status": False,
-                "message": "系統發生錯誤，請稍後再試"
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
             }, status=500)
 
     @csrf_exempt
@@ -207,13 +190,17 @@ class UserManager:
         """
         try:
             payload = json.loads(request.body)
-            user_uid = payload.get("user_uid")
-            if not user_uid:
+
+            # 必填欄位檢查
+            required_fields = ["user_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
                 return JsonResponse({
                     "status_code": 400,
-                    "status": False,
-                    "message": "缺少 user_uid"
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
+            
+            user_uid = payload.get("user_uid")
 
             # (A) 先取得該 user 的所有 conversation
             try:
@@ -223,17 +210,16 @@ class UserManager:
                     actor="ConversationManager",
                     function="get_conversation_metadata_list",
                     payload=meta_payload
-                    )
+                )
                 conversation_data = resp.json()
             except Exception as e:
                 return JsonResponse({
                     "status_code": 500,
-                    "status": False,
-                    "message": f"Fail to fetch conversation list from metadata_mgt: {str(e)}"
+                    "message": f"獲取 get_conversation_metadata_list() 失敗: {str(e)}"
                 }, status=500)
 
-            if not conversation_data.get("status", False):
-                return JsonResponse(conversation_data, status=conversation_data.get("status_code", 400))
+            if not conversation_data.get("status_code", 400):
+                return JsonResponse(conversation_data, status=conversation_data.get("status_code"))
 
             # (B) 刪除 conversation 相關檔案
             #     conversation_data["data"] 預期是一個 list，每個元素包含 
@@ -268,19 +254,16 @@ class UserManager:
             # 全部成功
             return JsonResponse({
                 "status_code": 200,
-                "status": True,
-                "message": "User and related conversations have been deleted successfully"
+                "message": "使用者刪除成功"
             }, status=200)
 
         except json.JSONDecodeError:
             return JsonResponse({
                 "status_code": 400,
-                "status": False,
                 "message": "無效的 JSON 格式"
             }, status=400)
         except Exception as e:
             return JsonResponse({
                 "status_code": 500,
-                "status": False,
-                "message": "系統發生錯誤，請稍後再試"
+                "message": f"系統發生錯誤，請稍後再試: {str(e)}"
             }, status=500)
