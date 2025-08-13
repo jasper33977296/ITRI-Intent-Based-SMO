@@ -46,7 +46,7 @@ def call_gemini_api_for_title(prompt: str, model_name: str = "gemini-1.5-flash")
 def generate_conversation_title(
     user_prompt: str,
     api_backend: Callable[[str, str], str] = call_openai_api_for_title,
-    model_name: str = "gpt-4o"
+    model_name: str = "gpt-4o-mini"
 ) -> str:
     """
     根據使用者提問，呼叫指定的 API 後端來生成對話標題。
@@ -64,21 +64,16 @@ def generate_conversation_title(
     # 建立一個專門用於生成標題的提示 (Prompt)，要求以 JSON 格式輸出
     title_generation_prompt = f"""
 ### 角色 ###
-你是一個標題生成器。請根據使用者輸入，產生一個簡潔、準確的標題，並且**輸出的語言必須與使用者輸入的主要語言完全相同**。
+你是一個標題生成器。請根據使用者輸入，產生一個簡潔、準確的英文標題。
 
 ### 任務說明 ###
-1. 閱讀使用者輸入，判斷主要語言（中文或英文），禁止將輸入內容翻譯成另一種語言。
-2. 若輸入內容主要為中文，則標題必須完全用中文生成；若主要為英文，則標題必須完全用英文生成。
-3. 對輸入文字進行大小寫不敏感的全域檢查（需跨行），判斷是否屬於「無線網路管理」相關內容：
-   - 關鍵詞包含（忽略大小寫與換行）：  
-     - 中文：無線網路、基站、干擾抑制  
-     - 英文：UE、SINR MAP、Interference suppression
-4. 若輸入包含上述任何關鍵詞（不分大小寫與換行），則根據輸入內容生成 5 到 10 個字的標題（保持輸入語言）。
-5. 若輸入內容與「無線網路管理」無關（如問候語、天氣、閒聊等），輸出以下預設標題（保持輸入語言）：  
-   - 中文輸入 → 「ITRI網路服務」  
-   - 英文輸入 → "ITRI Network Service"
-6. 在輸出前，必須檢查標題的語言與輸入的主要語言完全一致。
-7. 將生成的標題封裝在一個 JSON 物件中。
+1. 閱讀使用者輸入。
+2. 對輸入內容進行大小寫不敏感的全域檢查，判斷是否包含「無線網路管理」相關關鍵詞：
+   - 關鍵詞（忽略大小寫）：無線網路、基站、干擾抑制、UE status、SINR MAP、Interference suppression
+3. 根據關鍵詞判斷結果，決定如何生成標題：
+   - 若輸入包含任何關鍵詞，生成一個 5 到 10 個字的英文標題。
+   - 若輸入不包含任何關鍵詞，輸出預設標題："ITRI Network Service"。
+4. 將生成的標題封裝在一個 JSON 物件中。
 
 ### 輸出格式 ###
 你必須嚴格按照以下 JSON 格式輸出，不要包含任何其他文字、說明或 Markdown 語法。
