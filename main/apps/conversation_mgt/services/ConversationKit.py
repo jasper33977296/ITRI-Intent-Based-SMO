@@ -46,7 +46,7 @@ def call_gemini_api_for_title(prompt: str, model_name: str = "gemini-1.5-flash")
 def generate_conversation_title(
     user_prompt: str,
     api_backend: Callable[[str, str], str] = call_openai_api_for_title,
-    model_name: str = "gpt-3.5-turbo"
+    model_name: str = "gpt-4o-mini"
 ) -> str:
     """
     根據使用者提問，呼叫指定的 API 後端來生成對話標題。
@@ -64,12 +64,15 @@ def generate_conversation_title(
     # 建立一個專門用於生成標題的提示 (Prompt)，要求以 JSON 格式輸出
     title_generation_prompt = f"""
 ### 角色 ###
-你是一個標題生成器。請根據使用者輸入，產生一個簡潔、準確的中文標題。
+你是一個標題生成器。請根據使用者輸入，產生一個簡潔、準確的英文標題。
 
 ### 任務說明 ###
 1. 閱讀使用者輸入。
-2. 若輸入內容與「ITRI 51館 5樓無線網路管理」相關（例如查詢網路狀態、干擾情況、優化設定等），請根據輸入生成一個 5 到 10 個字的中文標題。
-3. 若輸入內容與無線網路管理無關（如問候語、天氣、其他無關問題），請回傳以下預設標題：「ITRI網路服務」。
+2. 對輸入內容進行大小寫不敏感的全域檢查，判斷是否包含「無線網路管理」相關關鍵詞：
+   - 關鍵詞（忽略大小寫）：無線網路、基站、干擾抑制、UE status、SINR MAP、Interference suppression
+3. 根據關鍵詞判斷結果，決定如何生成標題：
+   - 若輸入包含任何關鍵詞，生成一個 5 到 10 個字的英文標題。
+   - 若輸入不包含任何關鍵詞，輸出預設標題："ITRI Network Service"。
 4. 將生成的標題封裝在一個 JSON 物件中。
 
 ### 輸出格式 ###
