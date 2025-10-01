@@ -25,7 +25,6 @@ class UserController:
 
             return {
                 "status_code": 201,
-                "status": True,
                 "message": f"使用者建立成功",
                 "data":{
                     "user_uid":str(user.user_uid)
@@ -35,21 +34,18 @@ class UserController:
         except IntegrityError as e:
             return {
                 "status_code": 400,
-                "status": False,
                 "message": f"Email 已存在"
             }
 
         except ValidationError as e:
             return {
                 "status_code": 400,
-                "status": False,
                 "message": f"驗證失敗: {e.message_dict}"
             }
 
         except Exception as e:
             return {
                 "status_code": 500,
-                "status": False,
                 "message": f"伺服器內部錯誤: {str(e)}"
             }
 
@@ -113,10 +109,7 @@ class UserController:
             user = User.objects.get(user_uname=user_uname)
             return {
                 "status_code": 200,
-                "message": (
-                    f"使用者查詢成功 "
-                    f"(ID={user.user_id}, name={user.user_uname}, email={user.user_uemail})"
-                )
+                "message": f"使用者查詢成功 email={user.user_uemail}"
             }
 
         except ObjectDoesNotExist:
