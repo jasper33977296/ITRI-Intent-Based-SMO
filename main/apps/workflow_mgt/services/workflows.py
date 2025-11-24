@@ -115,6 +115,7 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
     }
     workflow_finished_data = None
     image_url = "" # 用於儲存圖片 URL
+    has_sent_event_2 = False # 用於追蹤是否已發送過 event_type "2"
 
     try:
         # 1. 呼叫 dify_workflow
@@ -191,6 +192,7 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
                             function="dispatch_topic",
                             payload=work_payload,
                         )
+                        has_sent_event_2 = True
                         print("推播成功:", resp)
                     except Exception as e:
                         print("推播失敗:", e)
@@ -241,6 +243,28 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
                 work_data = resp.json()
             except Exception as e:
                 print("Workflow 更新失敗: ", e)
+
+            # 判斷 dify 是否發生錯誤
+            if not has_sent_event_2:
+                work_payload = {
+                    "event_type": "0",
+                    "conversation_uid": conversation_uid,
+                    "text_content": [{
+                        "type": "message",
+                        "content": "Agent 處理請求失敗，請稍後再試。"
+                    }],
+                }
+
+                try:
+                    resp = json_request(
+                        module="workflow_mgt",
+                        actor="Producer",
+                        function="dispatch_topic",
+                        payload=work_payload,
+                    )
+                    print("推播成功:", resp)
+                except Exception as e:
+                    print("推播失敗:", e)
 
             work_payload = {
                 "event_type": "3",
