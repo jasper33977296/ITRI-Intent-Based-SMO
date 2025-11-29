@@ -231,7 +231,16 @@ class AgentController:
                     "message": "找不到對應的 agent"
                 }
 
-            # 2) 刪除 agent
+            # 2) 檢查該 user 剩餘 agent 數量，若只剩一個則阻擋刪除
+            user = agent.f_user_uid
+            remaining_count = Agent.objects.filter(f_user_uid=user).count()
+            if remaining_count <= 1:
+                return {
+                    "status_code": 400,
+                    "message": "用戶至少需存在一個 Agent"
+                }
+
+            # 3) 刪除 agent
             agent.delete()
 
             return {
