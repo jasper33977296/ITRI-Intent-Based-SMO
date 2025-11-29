@@ -52,6 +52,7 @@ class TextManager:
             conversation_uid = payload["conversation_uid"]
             text_array = payload["text_content"]
             role = payload["role"]
+            retry = payload.get("retry")
 
             if not isinstance(text_array, list):
                 return JsonResponse({
@@ -196,10 +197,15 @@ class TextManager:
 
             # (4) 建立 JSON 檔 texts/{...}/{text_uid}.json
             try:
-                create_json_file(text_path, {
+                json_data = {
                     "role": role,
-                    "text_content": text_array
-                })
+                    "text_content": text_array,
+                    "reward": ""
+                }
+                if retry is not None:
+                    json_data["retry"] = retry
+                    
+                create_json_file(text_path, json_data)
             except Exception as e:
                 return JsonResponse({
                     "status_code": 500,
@@ -463,6 +469,82 @@ class TextManager:
             return JsonResponse({
                 "status_code": 200,
                 "message": "Text deleted"
+            }, status=200)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
+        except Exception as e:
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
+
+    @csrf_exempt
+    @require_http_methods(["POST"])
+    @log_trigger()
+    def reward_text(request):
+        """
+        設定或更新指定 text 的 reward 值（good 或 bad）。
+
+        1) 檢查請求中的必填欄位（conversation_uid, text_uid, reward）。
+        2) 驗證 reward 值是否為 "good" 或 "bad"（可以是空字串）。
+        3) 讀取 texts/{conversation_uid}/{text_uid}.json。
+        4) 更新 reward 欄位並寫回檔案。
+        5) 回傳更新成功訊息。
+        """
+        try:
+            payload = json.loads(request.body)
+
+            # (1) 檢查必填欄位
+            required_fields = ["conversation_uid", "text_uid", "reward"]
+            missing = [f for f in required_fields if f not in payload]
+            if missing:
+                return JsonResponse({
+                    "status_code": 400,
+                    "message": f"Missing required fields: {', '.join(missing)}"
+                }, status=400)
+
+            conversation_uid = payload["conversation_uid"]
+            text_uid = payload["text_uid"]
+            reward = payload["reward"]
+
+            # (2) 驗證 reward 值
+            if reward not in ["", "good", "bad"]:
+                return JsonResponse({
+                    "status_code": 400,
+                    "message": "Field 'reward' must be empty string, 'good', or 'bad'"
+                }, status=400)
+
+            # (3) 讀取 text JSON 檔案
+            text_path = os.path.join("texts", conversation_uid, f"{text_uid}.json")
+            if not os.path.exists(text_path):
+                return JsonResponse({
+                    "status_code": 404,
+                    "message": f"Text file not found: {text_path}"
+                }, status=404)
+
+            try:
+                with open(text_path, "r", encoding="utf-8") as f:
+                    text_data = json.load(f)
+            except Exception as e:
+                return JsonResponse({
+                    "status_code": 500,
+                    "message": f"Failed to read text JSON: {str(e)}"
+                }, status=500)
+
+            # (4) 更新 reward 欄位
+            text_data["reward"] = reward
+
+            try:
+                with open(text_path, "w", encoding="utf-8") as f:
+                    json.dump(text_data, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                return JsonResponse({
+                    "status_code": 500,
+                    "message": f"Failed to update text JSON: {str(e)}"
+                }, status=500)
+
+            # (5) 回傳成功
+            return JsonResponse({
+                "status_code": 200,
+                "message": "Text reward success"
             }, status=200)
 
         except json.JSONDecodeError:
