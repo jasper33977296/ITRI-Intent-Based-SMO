@@ -23,6 +23,8 @@ def text_decorator(role: str):
                 return await func(self, *args, **kwargs)
 
             # ---- 依照方法名稱判斷要從哪裡取得文字 ----
+            text_content = None
+            retry_value = None
             
             if func.__name__ == "receive":
                 # 前端透過 WebSocket .send(JSON)，對應到 self.receive(text_data=...)
@@ -35,6 +37,7 @@ def text_decorator(role: str):
                         data = json.loads(text_data)
                         # receive(text_data=...)，text_data = { ..., "text_content": [...] }
                         text_content = data.get("text_content", [])
+                        retry_value = data.get("retry")
                     except Exception:
                         pass  # 忽略 JSON 解析失敗
 
@@ -59,6 +62,9 @@ def text_decorator(role: str):
                     "text_content": text_content,
                     "role": role
                 }
+                if retry_value is not None:
+                    create_payload["retry"] = retry_value
+                    
                 try:
                     # 使用您提供的 json_request_async 進行非同步 API 呼叫
                     text_uid_resp = await json_request_async(
@@ -67,10 +73,11 @@ def text_decorator(role: str):
                         function="create_text",
                         payload=create_payload
                     )
+                    # 取得建立後的 text_uid，供後續推播回前端使用
+                    text_uid_result = text_uid_resp.json()
+                    created_text_uid = text_uid_result.get("data", {}).get("text_uid", "")
 
                     if any(block.get("type") == "image" for block in text_content):
-                        text_uid_result = text_uid_resp.json()
-                        text_uid = text_uid_result.get("data", {}).get("text_uid", "")
 
                         text_list_resp  = await json_request_async(
                             module="conversation_mgt",
@@ -82,7 +89,7 @@ def text_decorator(role: str):
                         text_data_list = text_list_result.get("data", [])
 
                         for text_record  in text_data_list :
-                            if text_uid == text_record.get("text_uid"):
+                            if created_text_uid == text_record.get("text_uid"):
                                 # 將 text_content 替換為最新（含 image_uid）
                                 updated_text_content = text_record.get("text_content", [])
 
@@ -96,6 +103,18 @@ def text_decorator(role: str):
                                             new_payload["text_content"] = updated_text_content
                                             args = ({"payload": new_payload, **{k:v for k,v in args[0].items() if k!="payload"}},) + args[1:]
                                 break
+
+                    # 將剛建立的 text_uid 一併注入回傳 payload，讓前端能接收
+                    if func.__name__ == "broker_message" and created_text_uid:
+                        if "event" in kwargs:
+                            if isinstance(kwargs.get("event"), dict):
+                                kwargs["event"].setdefault("payload", {})
+                                kwargs["event"]["payload"]["text_uid"] = created_text_uid
+                        elif args and isinstance(args[0], dict):
+                            base_event = args[0]
+                            new_payload = base_event.get("payload", {}).copy()
+                            new_payload["text_uid"] = created_text_uid
+                            args = ({"payload": new_payload, **{k:v for k,v in base_event.items() if k!="payload"}},) + args[1:]
 
                 except Exception as e:
                     print(f"[text_decorator] Failed to create text via API: {e}")
