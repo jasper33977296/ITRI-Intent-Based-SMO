@@ -7,6 +7,7 @@ from main.utils.FileKit import delete_file, delete_folder
 from main.utils.ApiKit import json_request
 from main.utils.logger import log_trigger
 from main.apps.metadata_mgt.services.UserController import UserController
+from main.apps.metadata_mgt.services.AgentController import AgentController
 
 class UserManager:
     """
@@ -21,13 +22,11 @@ class UserManager:
         try:
             return JsonResponse({
                 "status_code": 200,
-                "status": True,
                 "message": "Hello World"
             }, status=200)
         except Exception as e:
             return JsonResponse({
                 "status_code": 500,
-                "status": False,
                 "message": "系統發生錯誤，請稍後再試"
             }, status=500)
 
@@ -49,16 +48,34 @@ class UserManager:
                     "status_code": 400,
                     "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
-
-            # 呼叫 Controller 建立
-            response = UserController.create_user(
+            # 建立 user metadata
+            user_response = UserController.create_user(
                 user_uname=payload['user_uname'],
                 user_password=payload['user_password'],
                 user_uemail=payload['user_uemail']
             )
+            if user_response["status_code"] != 201:
+                return JsonResponse(user_response, status=user_response["status_code"])
+            user_uid = user_response["data"]["user_uid"]
 
-            return JsonResponse(response, status=response["status_code"])
+            # 取得 .env 的 DIFY_API_KEY
+            api_key = os.environ.get("DIFY_API_KEY", "")
 
+            # 建立 agent metadata
+            agent_response = AgentController.create_agent(
+                user_uid=user_uid,
+                agent_name="default",
+                api_key=api_key
+            )
+            # 回傳 user_u
+            # id
+            return JsonResponse({
+                "status_code": 201,
+                "message": "使用者建立成功",
+                "data": {
+                    "user_uid": user_uid
+                }
+            }, status=201)
         except json.JSONDecodeError:
             return JsonResponse({
                 "status_code": 400,
@@ -247,9 +264,7 @@ class UserManager:
             # (C) 最後才刪除使用者
             response = UserController.delete_user(user_uid)
 
-            # 如果刪除使用者失敗，回傳錯誤
-            if not response.get("status", False):
-                return JsonResponse(response, status=response["status_code"])
+            return JsonResponse(response, status=response["status_code"])
 
             # 全部成功
             return JsonResponse({
