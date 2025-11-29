@@ -1,6 +1,7 @@
 from django.db import models
 import uuid
 from main.apps.metadata_mgt.models.UserModel import User
+from main.apps.metadata_mgt.models.AgentModel import Agent
 
 class Conversation(models.Model):
     conversation_id = models.AutoField(primary_key=True) 
@@ -17,6 +18,16 @@ class Conversation(models.Model):
         on_delete=models.CASCADE,
         to_field='user_uid',  # 指定要關聯到 User Model 中的 user_uid 欄位
         db_column='f_user_uid'  # 指定在本 Model 所對應的資料庫欄位名稱
+    )
+    
+    # f_agent_uid 為外鍵，對應到 Agent Model 的 agent_uid 欄位
+    f_agent_uid = models.ForeignKey(
+        Agent,
+        on_delete=models.CASCADE,
+        to_field='agent_uid',  # 指定要關聯到 Agent Model 中的 agent_uid 欄位
+        db_column='f_agent_uid',  # 指定在本 Model 所對應的資料庫欄位名稱
+        default='00000000-0000-0000-0000-000000000000',
+        null=False
     )
     
     class Meta:

@@ -56,10 +56,7 @@ def log_trigger():
                     if hasattr(result, "content"):
                         content = json.loads(result.content.decode("utf-8"))
                         status_code = (
-                            str(content["status_code"]) if "status_code" in content else
-                            "700" if content.get("status") is True else
-                            "800" if content.get("status") is False else
-                            "600"
+                            str(content["status_code"]) if "status_code" in content else "600"
                         )
                         message = content.get("message", "No message")
                     else:

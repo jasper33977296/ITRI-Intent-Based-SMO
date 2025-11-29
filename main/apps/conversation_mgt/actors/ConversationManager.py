@@ -18,11 +18,11 @@ class ConversationManager:
         """
         建立一個新的對話檔案 (CSV):
         Input JSON: {
-            "user_uid": "..."
+            "user_uid": "...",
+            "agent_uid": "..."
         }
-
         流程:
-        1) 從前端取出 user_uid
+        1) 從前端取出 user_uid, agent_uid
         2) 呼叫 metadata_mgt API 建立 conversation metadata, 取得 conversation_uid
         3) 呼叫 metadata_mgt API 建立 workflow metadata
         4) 建立一個空的 CSV 檔(只含表頭 "text_uid")
@@ -32,7 +32,7 @@ class ConversationManager:
             payload = json.loads(request.body)
 
             # 必填欄位檢查
-            required_fields = ["user_uid"]
+            required_fields = ["user_uid", "agent_uid"]
             missing_fields = [f for f in required_fields if f not in payload]
             if missing_fields:
                 return JsonResponse({
@@ -41,10 +41,12 @@ class ConversationManager:
                 }, status=400)
 
             user_uid = payload["user_uid"]
+            agent_uid = payload["agent_uid"]
 
             # 2) 呼叫 metadata_mgt API: 建立 conversation metadata, 並取得 conversation_uid
             meta_payload = {
                 "user_uid": user_uid,
+                "agent_uid": agent_uid,
                 "conversation_name": ''
             }
             try:
@@ -89,9 +91,6 @@ class ConversationManager:
             if not workflow_data.get("status_code", 400):
                 return JsonResponse(workflow_data, status=workflow_data.get("status_code", 400))
 
-            # 這裡如果需要 workflow_uid
-            # workflow_uid = workflow_data["data"].get("workflow_uid", "")
-
             # 4) 建立一個只含表頭 "text_uid" 的空白 CSV 檔
             try:
                 create_empty_csv(csv_path)
@@ -127,7 +126,6 @@ class ConversationManager:
                 "message": "Conversation created locally (CSV) and workflow metadata created",
                 "data": {
                     "conversation_uid": conversation_uid
-                    # "workflow_uid": workflow_uid  # 如需回傳，可加上
                 }
             }, status=201)
 
@@ -347,6 +345,72 @@ class ConversationManager:
             return JsonResponse({
                 "status_code": 200,
                 "message": "Conversation deleted"
+            }, status=200)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"status_code": 400, "message": "Invalid JSON"}, status=400)
+        except Exception as e:
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
+
+    @csrf_exempt
+    @require_http_methods(["POST"])
+    @log_trigger()
+    def get_agent_conversation_list(request):
+        """
+        取得指定 agent 的所有對話清單
+        Input JSON:
+            {
+                "user_uid": "...",
+                "agent_uid": "..."
+            }
+        流程:
+        1) 檢查 payload（必填欄位 user_uid, agent_uid）
+        2) 呼叫 metadata_mgt API 取得所有 conversation 的 conversation_uid 與 conversation_name
+        3) 回傳結果
+        """
+        try:
+            payload = json.loads(request.body)
+
+            # 1) 必填欄位檢查
+            required_fields = ["user_uid", "agent_uid"]
+            missing_fields = [f for f in required_fields if f not in payload]
+            if missing_fields:
+                return JsonResponse({
+                    "status_code": 400,
+                    "message": f"缺少必填欄位: {', '.join(missing_fields)}"
+                }, status=400)
+
+            user_uid = payload["user_uid"]
+            agent_uid = payload["agent_uid"]
+
+            # 2) 呼叫 metadata_mgt API，取得對話清單
+            meta_payload = {
+                "user_uid": user_uid,
+                "agent_uid": agent_uid
+            }
+            try:
+                resp = json_request(
+                    module="metadata_mgt",
+                    actor="ConversationManager",
+                    function="get_conversation_metadata_list",
+                    payload=meta_payload,
+                )
+                meta_data = resp.json()
+            except Exception as e:
+                return JsonResponse({
+                    "status_code": 502,
+                    "message": f"Fail to call metadata_mgt API: {str(e)}"
+                }, status=502)
+
+            if not meta_data.get("status_code", 400):
+                # 如果 metadata API 回傳 status = False，直接將其回傳
+                return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
+
+            # 3) 回傳取得的對話清單
+            return JsonResponse({
+                "status_code": 200,
+                "message": "Get agent conversation list success",
+                "data": meta_data.get("data", [])
             }, status=200)
 
         except json.JSONDecodeError:
