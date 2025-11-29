@@ -20,29 +20,24 @@ class ConversationManager():
         Input (POST JSON):
             user_uid (必填)
             conversation_name (必填)
-
+            agent_uid (必填)
         Output (JsonResponse)
         """
         try:
             payload = json.loads(request.body)
-
-            # 必填欄位檢查
-            required_fields = ["user_uid", "conversation_name"]
+            required_fields = ["user_uid", "conversation_name", "agent_uid"]
             missing_fields = [f for f in required_fields if f not in payload]
             if missing_fields:
                 return JsonResponse({
                     "status_code": 400,
                     "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
-
-            # 呼叫 Controller 建立
             response = ConversationController.create_conversation(
                 f_user_uid=payload.get("user_uid"),
                 conversation_name=payload.get("conversation_name"),
+                f_agent_uid=payload.get("agent_uid")
             )
-
             return JsonResponse(response, status=response["status_code"])
-
         except json.JSONDecodeError:
             return JsonResponse({
                 "status_code": 400,
@@ -61,13 +56,11 @@ class ConversationManager():
         """
         Input (POST JSON):
             user_uid (必填)
-
+            agent_uid (選填)
         Output (JsonResponse)
         """
         try:
             payload = json.loads(request.body)
-
-            # 必填欄位檢查
             required_fields = ["user_uid"]
             missing_fields = [f for f in required_fields if f not in payload]
             if missing_fields:
@@ -75,12 +68,11 @@ class ConversationManager():
                     "status_code": 400,
                     "message": f"缺少必填欄位: {', '.join(missing_fields)}"
                 }, status=400)
-
-            # 呼叫 Controller 查詢
-            response = ConversationController.get_user_conversation_metadata_list(payload["user_uid"])
-
+            response = ConversationController.get_user_conversation_metadata_list(
+                user_uid=payload["user_uid"],
+                agent_uid=payload.get("agent_uid")
+            )
             return JsonResponse(response, status=response["status_code"])
-        
         except json.JSONDecodeError:
             return JsonResponse({
                 "status_code": 400,
