@@ -2,20 +2,22 @@ import os
 from django.core.exceptions import ObjectDoesNotExist
 from main.apps.metadata_mgt.models.ConversationModel import Conversation
 from main.apps.metadata_mgt.models.UserModel import User
+from main.apps.metadata_mgt.models.AgentModel import Agent
 
 class ConversationController:
 
     @staticmethod
-    def create_conversation(f_user_uid, conversation_name=""):
+    def create_conversation(f_user_uid, conversation_name="", f_agent_uid=None):
         """
         建立新的 Conversation (DB table: conversation)
 
         * conversation_path 路徑不由前端輸入，而是在此自動組合:
-          格式: {CONVERSATION_FOLDER_PATH}/{user_uid}/{conversation_uid}.json
+          格式: {CONVERSATION_FOLDER_PATH}/{user_uid}/{conversation_uid}.csv
 
         Input:
             user_uid: 使用者的 user_uid (UUID)
             conversation_name: (選填) 對話顯示名稱
+            agent_uid: agent 的 agent_uid (UUID)
 
         Output:
             dict: {
@@ -33,17 +35,23 @@ class ConversationController:
                     "status_code": 404,
                     "message": f"找不到 user_uid = {f_user_uid}"
                 }
-
-            # 2) 先建立 Conversation 物件（未指定 conversation_path）
+            # 2) 驗證 agent 是否存在
+            agent = None
+            if f_agent_uid:
+                try:
+                    agent = Agent.objects.get(agent_uid=f_agent_uid)
+                except ObjectDoesNotExist:
+                    return {
+                        "status_code": 404,
+                        "message": f"找不到 agent_uid = {f_agent_uid}"
+                    }
+            # 3) 建立 Conversation 物件
             conversation = Conversation(
                 f_user_uid=user,
-                conversation_name=conversation_name
+                conversation_name=conversation_name,
+                f_agent_uid=agent
             )
-            # 此時 conversation.conversation_uid 已有值 (因為預設 default=uuid.uuid4)
-            # 3) 自動組合 conversation_path
             conversation_path = f"""{os.environ.get("CONVERSATION_FOLDER_PATH")}/{f_user_uid}/{conversation.conversation_uid}.csv"""
-
-            # 4) 寫入並存檔
             conversation.conversation_path = conversation_path
             conversation.save()
 
@@ -53,6 +61,7 @@ class ConversationController:
                 "data": {
                     "conversation_uid": str(conversation.conversation_uid),
                     "user_uid": str(conversation.f_user_uid.user_uid),
+                    "agent_uid": str(conversation.f_agent_uid.agent_uid),
                     "conversation_path": conversation.conversation_path,  # 這裡是自動生成的路徑
                     "conversation_name": conversation.conversation_name,
                     "created_at": conversation.created_at.isoformat(),
@@ -96,22 +105,45 @@ class ConversationController:
             }
 
     @staticmethod
-    def get_user_conversation_metadata_list(user_uid):
+    def get_user_conversation_metadata_list(user_uid, agent_uid=None):
         """
-        取得指定使用者 (user_uid) 所有的 Conversation
+        取得指定 user_uid (可選 agent_uid) 的所有 conversation metadata
+
+        * 當提供 agent_uid 時，必須同時符合 user_uid 與 agent_uid
+        * 否則僅依據 user_uid 查詢
+
+        Input:
+            user_uid: 使用者的 user_uid (UUID)
+            agent_uid: (選填) agent 的 agent_uid (UUID)
+
+        Output:
+            dict: {
+               "status_code": <int>,
+               "message": <str>,
+               "data": [...](若成功取得則回傳對應資料列表)
+            }
         """
         try:
-            # 驗證使用者是否存在
-            if not User.objects.filter(user_uid=user_uid).exists():
+            # 1) 驗證 user 是否存在
+            try:
+                user = User.objects.get(user_uid=user_uid)
+            except ObjectDoesNotExist:
                 return {
                     "status_code": 404,
                     "message": f"找不到 user_uid = {user_uid}"
                 }
-
-            conversations = Conversation.objects.filter(
-                f_user_uid__user_uid=user_uid
-            ).order_by('-created_at')
-
+            # 2) 查詢 conversation
+            if agent_uid:
+                try:
+                    agent = Agent.objects.get(agent_uid=agent_uid)
+                except ObjectDoesNotExist:
+                    return {
+                        "status_code": 404,
+                        "message": f"找不到 agent_uid = {agent_uid}"
+                    }
+                conversations = Conversation.objects.filter(f_user_uid=user, f_agent_uid=agent).order_by('-created_at')
+            else:
+                conversations = Conversation.objects.filter(f_user_uid=user).order_by('-created_at')
             data_list = []
             for c in conversations:
                 data_list.append({
@@ -121,6 +153,7 @@ class ConversationController:
                     "created_at": c.created_at.isoformat(),
                     "updated_at": c.updated_at.isoformat(),
                     "user_uid": str(c.f_user_uid.user_uid),
+                    "agent_uid": str(c.f_agent_uid.agent_uid)
                 })
 
             return {

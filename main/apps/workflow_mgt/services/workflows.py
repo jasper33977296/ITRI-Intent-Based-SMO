@@ -3,6 +3,7 @@ import json
 import requests
 from openai import OpenAI
 from main.apps.metadata_mgt.services.ConversationController import ConversationController
+from main.apps.metadata_mgt.services.AgentController import AgentController
 
 from main.utils.logger import log_writer
 from main.utils.ApiKit import json_request
@@ -76,8 +77,33 @@ def text_analysis(user_prompt):
         }
     
 
+def validate_dify_api_key(api_key: str):
+    """
+    驗證 Dify API Key 是否可用。
+    以 GET http://{HTTP_DIFY_HOST}/v1/info 並帶 Authorization Bearer {api_key} 驗證。
 
-def dify_single_intent_workflow(conversation_uid,user_prompt):
+    Returns:
+        dict: {"status_code": int, "message": str}
+    """
+    try:
+        host = os.getenv("HTTP_DIFY_HOST", "")
+        if not api_key:
+            return {"status_code": 400, "message": "缺少 api_key"}
+        headers = {"Authorization": f"Bearer {api_key}"}
+        resp = requests.get(f"http://{host}/v1/info", headers=headers, timeout=10)
+        resp.raise_for_status()
+        # 成功則 200
+        return {"status_code": 200, "message": "API key valid"}
+    except requests.exceptions.HTTPError as e:
+        status = getattr(e.response, 'status_code', 500)
+        return {"status_code": status, "message": f"HTTPError: {str(e)}"}
+    except requests.exceptions.RequestException as e:
+        return {"status_code": 500, "message": f"Network error: {str(e)}"}
+    except Exception as e:
+        return {"status_code": 500, "message": f"Unexpected error: {str(e)}"}
+
+
+def dify_single_intent_workflow(conversation_uid, user_prompt):
     """
     並將結果以 Python dict 回傳給呼叫者。
 
@@ -91,19 +117,23 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
             "parsed_data": any,       # 從 GPT 解析出的資料 (若成功，可自行定義為任何資料結構)
         }
     """
-    # 建議在必要時把 user_prompt 帶入 payload["query"] 中 (目前示例寫死成 "text")
-    # 也可依實際需求調整：payload["inputs"] 等欄位
-    api_key = os.getenv("DIFY_API_KEY", "")
-    bearer = "Bearer "+api_key
-
+    # 1. 透過 AgentController 取得 agent_api_key
+    agent_api_result = AgentController.get_agent_api_key_by_conversation(conversation_uid)
+    if agent_api_result.get("status_code") != 200:
+        return {
+            "status_code": 400,
+            "message": f"找不到 agent api_key: {agent_api_result.get('message', '')}",
+            "parsed_data": None
+        }
+    
+    api_key = agent_api_result.get("data", {}).get("api_key", "")
+    bearer = "Bearer " + api_key
     headers = {
         "Authorization": bearer,
         "Content-Type": "application/json"
     }
-
     result = ConversationController.get_dify_conversation_id(conversation_uid)
     dify_conversation_id = result.get("data", "")
-
     payload = {
         "query": user_prompt,
         "inputs": {"conversation_uid": conversation_uid},
@@ -115,6 +145,7 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
     }
     workflow_finished_data = None
     image_url = "" # 用於儲存圖片 URL
+    has_sent_event_2 = False # 用於追蹤是否已發送過 event_type "2"
 
     try:
         # 1. 呼叫 dify_workflow
@@ -191,6 +222,7 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
                             function="dispatch_topic",
                             payload=work_payload,
                         )
+                        has_sent_event_2 = True
                         print("推播成功:", resp)
                     except Exception as e:
                         print("推播失敗:", e)
@@ -241,6 +273,28 @@ def dify_single_intent_workflow(conversation_uid,user_prompt):
                 work_data = resp.json()
             except Exception as e:
                 print("Workflow 更新失敗: ", e)
+
+            # 判斷 dify 是否發生錯誤
+            if not has_sent_event_2:
+                work_payload = {
+                    "event_type": "0",
+                    "conversation_uid": conversation_uid,
+                    "text_content": [{
+                        "type": "message",
+                        "content": "Agent 處理請求失敗，請稍後再試。"
+                    }],
+                }
+
+                try:
+                    resp = json_request(
+                        module="workflow_mgt",
+                        actor="Producer",
+                        function="dispatch_topic",
+                        payload=work_payload,
+                    )
+                    print("推播成功:", resp)
+                except Exception as e:
+                    print("推播失敗:", e)
 
             work_payload = {
                 "event_type": "3",

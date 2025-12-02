@@ -71,7 +71,9 @@ def read_text_jsons(conversation_uid: str, text_uids: list[str]) -> list[dict]:
         {
             "text_uid": <string>,
             "role": <string>,
-            "text": [ { "type": ..., "content": ... }, ... ]
+            "text": [ { "type": ..., "content": ... }, ... ],
+            "reward": <string>,
+            "retry": <string> (可選)
         }
     若某個 text_uid.json 不存在，預設跳過 (或可依需求改為丟例外)。
     """
@@ -81,12 +83,17 @@ def read_text_jsons(conversation_uid: str, text_uids: list[str]) -> list[dict]:
         if os.path.exists(text_json_path):
             with open(text_json_path, "r", encoding="utf-8") as f:
                 text_data = json.load(f)
-                # 假設 text_data = {"role": <string>, "text": [ { "type":..., "content":... }, ... ] }
-                data_list.append({
+                # 假設 text_data = {"role": <string>, "text": [ { "type":..., "content":... }, ... ], "reward": <string> }
+                result = {
                     "text_uid": t_uid,
                     "role": text_data.get("role", ""),
-                    "text_content": text_data.get("text_content", [])
-                })
+                    "text_content": text_data.get("text_content", []),
+                    "reward": text_data.get("reward", "")
+                }
+                # 只有當 retry 存在時才加入
+                if "retry" in text_data:
+                    result["retry"] = text_data["retry"]
+                data_list.append(result)
         else:
             # 檔案不存在時，預設跳過 (或可改用 raise FileNotFoundError 等做更嚴謹處理)
             pass

@@ -40,7 +40,7 @@ class UserController:
         except ValidationError as e:
             return {
                 "status_code": 400,
-                "message": f"驗證失敗: {e.message_dict}"
+                "message": f"驗證失敗: {str(e)}"
             }
 
         except Exception as e:

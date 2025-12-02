@@ -4,6 +4,7 @@ from main.apps.metadata_mgt.actors.ConversationManager import ConversationManage
 from main.apps.metadata_mgt.actors.TextManager import TextManager
 from main.apps.metadata_mgt.actors.WorkflowManager import WorkflowManager
 from main.apps.metadata_mgt.actors.ImageManager import ImageManager
+from main.apps.metadata_mgt.actors.AgentManager import AgentManager
 
 urlpatterns = [
     path("metadata_mgt/UserManager/create_user",UserManager.create_user,name='create_user'),
@@ -28,4 +29,9 @@ urlpatterns = [
     path('metadata_mgt/ImageManager/get_image_metadata', ImageManager.get_image_metadata,name='get_image_metadata'),
     path('metadata_mgt/ImageManager/get_image_metadata_list', ImageManager.get_image_metadata_list,name='get_image_metadata_list'),
     path('metadata_mgt/ImageManager/delete_image_metadata', ImageManager.delete_image_metadata,name='delete_image_metadata'),
+    path('metadata_mgt/AgentManager/create_agent_metadata', AgentManager.create_agent_metadata,name='create_agent_metadata'),
+    path('metadata_mgt/AgentManager/get_agent_name', AgentManager.get_agent_name,name='get_agent_name'),
+    path('metadata_mgt/AgentManager/get_agent_list_metadata', AgentManager.get_agent_list_metadata,name='get_agent_list_metadata'),
+    path('metadata_mgt/AgentManager/update_agent_metadata', AgentManager.update_agent_metadata,name='update_agent_metadata'),
+    path('metadata_mgt/AgentManager/delete_agent_metadata', AgentManager.delete_agent_metadata,name='delete_agent_metadata'),
 ]
