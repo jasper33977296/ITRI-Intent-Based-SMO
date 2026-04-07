@@ -177,6 +177,7 @@ def dify_single_intent_workflow(conversation_uid, user_prompt):
 
         # 2. 處理串流回應
         client = SSEClient(response)
+        agent_files_list = []  # 從 Agent 節點擷取的 files（Answer 節點可能不帶 files）
         for event in client.events():
             try:
                 data = json.loads(event.data)
@@ -184,36 +185,36 @@ def dify_single_intent_workflow(conversation_uid, user_prompt):
                 node_type = data.get("data", {}).get("node_type", "")
                 node_title = data.get("data", {}).get("title", "")
 
+                # 從 Agent 節點擷取 files（圖片等）
+                if node_event == "node_finished" and node_type == "agent":
+                    agent_files = data.get("data", {}).get("outputs", {}).get("files", [])
+                    if agent_files and isinstance(agent_files, list):
+                        agent_files_list = agent_files
+
                 if node_event == "node_finished" and node_type == "answer" and "直接回覆" in node_title:
                     answer = data.get("data", {}).get("outputs", {}).get("answer", "")
                     files_list  = data.get("data", {}).get("outputs", {}).get("files", [])
+                    # 若 Answer 節點沒有 files，使用 Agent 節點的 files
+                    if not files_list:
+                        files_list = agent_files_list
 
                     if files_list and isinstance(files_list, list) and len(files_list) > 0:
                         image_url = files_list[0].get("url", "")
                     else:
                         image_url = "" # 如果 files_list 為空或不符合預期，則清空 image_url
 
+                    text = answer
+                    text_content = [{"type": "message", "content": answer}]
+
                     if image_url != "":
-                        text = image_url
                         full_download_url = f"http://{host}{image_url}"
-                        work_payload = {
-                            "event_type": "2",
-                            "conversation_uid": conversation_uid,
-                            "text_content": [{
-                                "type": "image",
-                                "content": full_download_url
-                            }],
-                        }
-                    else:
-                        text = answer
-                        work_payload = {
-                            "event_type": "2",
-                            "conversation_uid": conversation_uid,
-                            "text_content": [{
-                                "type": "message",
-                                "content": text
-                            }],
-                        }
+                        text_content.append({"type": "image", "content": full_download_url})
+
+                    work_payload = {
+                        "event_type": "2",
+                        "conversation_uid": conversation_uid,
+                        "text_content": text_content,
+                    }
 
                     try:
                         resp = json_request(
