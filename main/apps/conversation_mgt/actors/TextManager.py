@@ -119,11 +119,19 @@ class TextManager:
                     item['content'] = pattern.sub('', item['content'])
 
             # 判斷 type == image 創建 image
+            # content 為 URL（http 開頭）→ 走下載邏輯（LLM 回傳的圖片）
+            # content 為非 URL → 視為已上傳的 image_uid（使用者上傳的圖片），跳過下載
             for item in text_array:
                 if item.get("type") == "image":
+                    content = item.get("content", "")
+
+                    # 若 content 不是 URL，代表已經是 image_uid（前端已上傳），跳過
+                    if not content.startswith("http://") and not content.startswith("https://"):
+                        continue
+
                     meta_payload = {
                         "conversation_uid": conversation_uid,
-                        "content": item.get("content")
+                        "content": content
                     }
 
                     try:

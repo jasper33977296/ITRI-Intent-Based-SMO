@@ -1,13 +1,15 @@
 import os
 import json
 import requests
+
+from django.conf import settings
 from openai import OpenAI
+from sseclient import SSEClient
+
 from main.apps.metadata_mgt.services.ConversationController import ConversationController
 from main.apps.metadata_mgt.services.AgentController import AgentController
-
 from main.utils.logger import log_writer
 from main.utils.ApiKit import json_request
-from sseclient import SSEClient
 
 def text_analysis(user_prompt):
     """
@@ -103,7 +105,81 @@ def validate_dify_api_key(api_key: str):
         return {"status_code": 500, "message": f"Unexpected error: {str(e)}"}
 
 
-def dify_single_intent_workflow(conversation_uid, user_prompt):
+def upload_image_to_dify(image_path, api_key):
+    """
+    將本地圖片上傳到 Dify /v1/files/upload，取得 upload_file_id。
+
+    Params:
+        image_path (str): 本地圖片的絕對路徑
+        api_key (str): Dify API Key
+
+    Returns:
+        str: upload_file_id，失敗則回傳空字串
+    """
+    host = os.getenv("HTTP_DIFY_HOST", "")
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    try:
+        with open(image_path, "rb") as f:
+            files = {"file": (os.path.basename(image_path), f, "image/png")}
+            data = {"user": "test_user1"}
+            resp = requests.post(
+                f"http://{host}/v1/files/upload",
+                headers=headers,
+                files=files,
+                data=data,
+                timeout=30
+            )
+            resp.raise_for_status()
+            return resp.json().get("id", "")
+    except Exception as e:
+        print(f"[upload_image_to_dify] Failed: {e}")
+        return ""
+
+
+def build_dify_files(image_items, api_key):
+    """
+    將 image_items 中的圖片逐一上傳到 Dify，組裝 files 參數。
+
+    Params:
+        image_items (list): [{"type": "image", "content": "image_uid"}, ...]
+        api_key (str): Dify API Key
+
+    Returns:
+        list: Dify chat-messages 的 files 參數
+    """
+    files = []
+    for item in image_items:
+        image_uid = item.get("content", "")
+        if not image_uid:
+            continue
+
+        # 查找本地圖片路徑（遍歷 media/images/ 下所有 conversation 資料夾）
+        images_root = os.path.join(settings.MEDIA_ROOT, "images")
+        image_path = None
+        if os.path.exists(images_root):
+            for conv_dir in os.listdir(images_root):
+                candidate = os.path.join(images_root, conv_dir, f"{image_uid}.png")
+                if os.path.isfile(candidate):
+                    image_path = candidate
+                    break
+
+        if not image_path:
+            print(f"[build_dify_files] Image file not found for image_uid={image_uid}")
+            continue
+
+        upload_file_id = upload_image_to_dify(image_path, api_key)
+        if upload_file_id:
+            files.append({
+                "type": "image",
+                "transfer_method": "local_file",
+                "upload_file_id": upload_file_id
+            })
+
+    return files
+
+
+def dify_single_intent_workflow(conversation_uid, user_prompt, image_items=None):
     """
     並將結果以 Python dict 回傳給呼叫者。
 
@@ -134,13 +210,34 @@ def dify_single_intent_workflow(conversation_uid, user_prompt):
     }
     result = ConversationController.get_dify_conversation_id(conversation_uid)
     dify_conversation_id = result.get("data", "")
+
+    # 上傳圖片到 Dify 並組裝 files 參數
+    dify_files = []
+    if image_items:
+        dify_files = build_dify_files(image_items, api_key)
+
+    # 將圖片 URL 附加到 query（因為 Dify Agent Strategy plugin 無法接收 files 參數）
+    # Plugin 從 query 解析 URL 後建構多模態 UserPromptMessage，Dify 模型層會從 URL 下載圖片
+    enriched_query = user_prompt
+    if image_items:
+        backend_host = os.getenv("HTTP_WORKFLOW_MGT_HOST")
+        backend_port = os.getenv("HTTP_WORKFLOW_MGT_PORT")
+        api_version = os.getenv("WORKFLOW_MGT_API_VERSION")
+
+        for idx, item in enumerate(image_items):
+            image_uid = item.get("content", "")
+            if not image_uid:
+                continue
+            image_url = f"http://{backend_host}:{backend_port}/api/{api_version}/conversation_mgt/ImageManager/serve_image/{image_uid}"
+            enriched_query += f"\n[IMAGE_URL_{idx}]{image_url}[/IMAGE_URL_{idx}]"
+
     payload = {
-        "query": user_prompt,
+        "query": enriched_query,
         "inputs": {"conversation_uid": conversation_uid},
         "response_mode": "streaming",
         "user": "test_user1",
         "conversation_id": dify_conversation_id,
-        "files": [],
+        "files": dify_files,
         "auto_generate_name": True
     }
     workflow_finished_data = None

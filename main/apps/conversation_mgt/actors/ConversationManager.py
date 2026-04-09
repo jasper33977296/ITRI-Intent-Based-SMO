@@ -286,7 +286,16 @@ class ConversationManager:
                     # 即使某個 text 刪除失敗，可選擇直接中斷或繼續嘗試刪除其他 text
                     return JsonResponse(del_text_data, status=del_text_data.get("status_code", 400))
             
-            # 5) 呼叫 metadata_mgt: delete_conversation_metadata
+            # 5) 清理孤兒圖片：刪除 media/images/{conversation_uid}/ 整個資料夾
+            try:
+                from django.conf import settings
+                image_dir = os.path.join(settings.MEDIA_ROOT, "images", conversation_uid)
+                delete_folder(image_dir)
+            except Exception as e:
+                # 圖片資料夾可能不存在（該對話從未有圖片），不阻斷主流程
+                print(f"Warning: Failed to delete image folder for {conversation_uid}: {e}")
+
+            # 6) 呼叫 metadata_mgt: delete_conversation_metadata
             try:
                 resp_del = json_request(
                     module="metadata_mgt",
@@ -304,7 +313,7 @@ class ConversationManager:
             if not del_meta_data.get("status_code", 400):
                 return JsonResponse(del_meta_data, status=del_meta_data.get("status_code", 400))
 
-            # 6) 刪除 texts/{conversation_uid} 資料夾 (若裡面已空則快; 若有殘留檔案也能清掉)
+            # 7) 刪除 texts/{conversation_uid} 資料夾 (若裡面已空則快; 若有殘留檔案也能清掉)
             try:
                 text_dir = os.path.join("texts", conversation_uid)
                 delete_folder(text_dir)
@@ -314,7 +323,7 @@ class ConversationManager:
                     "message": f"Failed to remove folder texts/{conversation_uid}: {str(e)}"
                 }, status=500)
 
-            # 7) 刪除 conversations/{user_uid}/{conversation_uid}.csv
+            # 8) 刪除 conversations/{user_uid}/{conversation_uid}.csv
             try:
                 delete_file(conversation_path)
             except Exception as e:
@@ -323,7 +332,7 @@ class ConversationManager:
                     "message": f"Failed to remove CSV file: {str(e)}"
                 }, status=500)
 
-            # 8) 呼叫 topic_mgt: delete_topic
+            # 9) 呼叫 topic_mgt: delete_topic
             try:
                 resp_del = json_request(
                     module="topic_mgt",

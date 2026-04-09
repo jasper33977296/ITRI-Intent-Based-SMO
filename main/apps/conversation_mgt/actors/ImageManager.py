@@ -4,16 +4,102 @@ import requests
 from django.http import JsonResponse, FileResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-
-
-from main.utils.ApiKit import json_request
-from main.utils.FileKit import create_folder, delete_file
-from main.utils.logger import log_trigger
 from pathlib import Path
 
 from django.conf import settings
 
+from main.utils.ApiKit import json_request
+from main.utils.FileKit import create_folder, delete_file
+from main.utils.logger import log_trigger
+
+# 上傳圖片大小限制 (10MB)
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024
+
 class ImageManager:
+
+    @csrf_exempt
+    @require_http_methods(["POST"])
+    @log_trigger()
+    def upload_image(request):
+        """
+        前端上傳圖片：
+        1. 接收 multipart/form-data（conversation_uid + image 檔案）
+        2. 檢查檔案大小 ≤ 10MB、格式為 PNG
+        3. 呼叫 metadata_mgt 建立 image metadata
+        4. 儲存圖片到 media/images/{conversation_uid}/{image_uid}.png
+        5. 回傳 image_uid
+        """
+        try:
+            conversation_uid = request.POST.get("conversation_uid")
+            if not conversation_uid:
+                return JsonResponse({
+                    "status_code": 400,
+                    "message": "Missing required field: 'conversation_uid'"
+                }, status=400)
+
+            image_file = request.FILES.get("image")
+            if not image_file:
+                return JsonResponse({
+                    "status_code": 400,
+                    "message": "Missing required file: 'image'"
+                }, status=400)
+
+            # 檢查檔案大小
+            if image_file.size > MAX_UPLOAD_SIZE:
+                return JsonResponse({
+                    "status_code": 400,
+                    "message": f"File size exceeds limit ({MAX_UPLOAD_SIZE // (1024*1024)}MB)"
+                }, status=400)
+
+            # 檢查檔案格式（PNG）
+            if image_file.content_type not in ["image/png"]:
+                return JsonResponse({
+                    "status_code": 400,
+                    "message": "Only PNG format is supported"
+                }, status=400)
+
+            # 呼叫 metadata_mgt 建立 image metadata
+            try:
+                meta_resp = json_request(
+                    module="metadata_mgt",
+                    actor="ImageManager",
+                    function="create_image_metadata",
+                    payload={"conversation_uid": conversation_uid}
+                )
+                meta_data = meta_resp.json()
+            except Exception as e:
+                return JsonResponse({
+                    "status_code": 502,
+                    "message": f"Fail to call metadata_mgt: {str(e)}"
+                }, status=502)
+
+            if meta_data.get("status_code") != 201:
+                return JsonResponse(meta_data, status=meta_data.get("status_code", 400))
+
+            image_uid = meta_data["data"]["image_uid"]
+            image_dir = os.path.join(settings.MEDIA_ROOT, "images", conversation_uid)
+            image_path = os.path.join(image_dir, f"{image_uid}.png")
+
+            # 建立資料夾並儲存檔案
+            create_folder(image_dir)
+            try:
+                with open(image_path, "wb") as f:
+                    for chunk in image_file.chunks():
+                        f.write(chunk)
+            except Exception as e:
+                return JsonResponse({
+                    "status_code": 500,
+                    "message": f"Failed to save image file: {str(e)}"
+                }, status=500)
+
+            return JsonResponse({
+                "status_code": 201,
+                "message": "Image uploaded successfully",
+                "data": {"image_uid": image_uid}
+            }, status=201)
+
+        except Exception as e:
+            return JsonResponse({"status_code": 500, "message": str(e)}, status=500)
 
     @csrf_exempt
     @require_http_methods(["POST"])
@@ -276,3 +362,27 @@ class ImageManager:
         except Exception as e:
             print(f"Error serving image: {e}")
             return JsonResponse({'error': 'Image could not be served due to server error.'}, status=500)
+
+    @require_http_methods(["GET"])
+    def serve_image(request, image_uid):
+        """
+        GET endpoint：透過 URL 直接提供圖片。
+        供 Dify Plugin 等外部服務以 URL 方式存取圖片。
+        URL: /api/v3/conversation_mgt/ImageManager/serve_image/<image_uid>
+        """
+        try:
+            # 在 media/images/ 下搜尋該 image_uid
+            images_root = os.path.join(settings.MEDIA_ROOT, "images")
+            if not os.path.exists(images_root):
+                raise Http404("Image not found.")
+
+            for conv_dir in os.listdir(images_root):
+                candidate = Path(images_root) / conv_dir / f"{image_uid}.png"
+                if candidate.is_file():
+                    return FileResponse(open(candidate, 'rb'), content_type='image/png')
+
+            raise Http404("Image not found.")
+        except Http404:
+            return JsonResponse({'error': 'Image not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
