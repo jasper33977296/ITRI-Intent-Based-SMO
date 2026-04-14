@@ -39,10 +39,12 @@ class WorkflowManager:
 
             user_content = ""
             image_items = []
+            audio_items = []
 
             if isinstance(text_content, list):
                 text_items = [t for t in text_content if t.get("type") == "message"]
                 image_items = [t for t in text_content if t.get("type") == "image"]
+                audio_items = [t for t in text_content if t.get("type") == "audio"]
                 user_content = text_items[0].get("content", "") if text_items else ""
                 
             # 更新 workflow status 1
@@ -67,7 +69,7 @@ class WorkflowManager:
                 return JsonResponse(work_data, status_code=work_data.get("status_code", 400))
 
             # (2) 呼叫 dify 執行工作流
-            result = dify_single_intent_workflow(conversation_uid, user_content, image_items)
+            result = dify_single_intent_workflow(conversation_uid, user_content, image_items, audio_items)
             if not result or "data" not in result:
                 return JsonResponse({
                     "status_code": 502,

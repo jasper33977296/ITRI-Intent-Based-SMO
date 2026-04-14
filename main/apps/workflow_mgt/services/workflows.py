@@ -117,17 +117,16 @@ def upload_image_to_dify(image_path, api_key):
         str: upload_file_id，失敗則回傳空字串
     """
     host = os.getenv("HTTP_DIFY_HOST", "")
+    url = f"http://{host}/v1/files/upload"
     headers = {"Authorization": f"Bearer {api_key}"}
 
     try:
         with open(image_path, "rb") as f:
-            files = {"file": (os.path.basename(image_path), f, "image/png")}
-            data = {"user": "test_user1"}
             resp = requests.post(
-                f"http://{host}/v1/files/upload",
+                url,
                 headers=headers,
-                files=files,
-                data=data,
+                files={"file": (os.path.basename(image_path), f, "image/png")},
+                data={"user": "test_user1"},
                 timeout=30
             )
             resp.raise_for_status()
@@ -137,7 +136,7 @@ def upload_image_to_dify(image_path, api_key):
         return ""
 
 
-def build_dify_files(image_items, api_key):
+def build_dify_image_files(image_items, api_key):
     """
     將 image_items 中的圖片逐一上傳到 Dify，組裝 files 參數。
 
@@ -146,7 +145,7 @@ def build_dify_files(image_items, api_key):
         api_key (str): Dify API Key
 
     Returns:
-        list: Dify chat-messages 的 files 參數
+        list: Dify chat-messages 的 files 參數（type: image）
     """
     files = []
     for item in image_items:
@@ -154,7 +153,6 @@ def build_dify_files(image_items, api_key):
         if not image_uid:
             continue
 
-        # 查找本地圖片路徑（遍歷 media/images/ 下所有 conversation 資料夾）
         images_root = os.path.join(settings.MEDIA_ROOT, "images")
         image_path = None
         if os.path.exists(images_root):
@@ -165,7 +163,7 @@ def build_dify_files(image_items, api_key):
                     break
 
         if not image_path:
-            print(f"[build_dify_files] Image file not found for image_uid={image_uid}")
+            print(f"[build_dify_image_files] Image file not found for image_uid={image_uid}")
             continue
 
         upload_file_id = upload_image_to_dify(image_path, api_key)
@@ -175,17 +173,80 @@ def build_dify_files(image_items, api_key):
                 "transfer_method": "local_file",
                 "upload_file_id": upload_file_id
             })
+        else:
+            print(f"[build_dify_image_files] upload failed for image_uid={image_uid}")
 
     return files
 
 
-def dify_single_intent_workflow(conversation_uid, user_prompt, image_items=None):
+def build_dify_audio_files(audio_items, api_key):
+    """
+    將 audio_items 中的音檔逐一上傳到 Dify，組裝 files 參數。
+
+    Params:
+        audio_items (list): [{"type": "audio", "content": "audio_uid"}, ...]
+        api_key (str): Dify API Key
+
+    Returns:
+        list: Dify chat-messages 的 files 參數（type: audio）
+    """
+    host = os.getenv("HTTP_DIFY_HOST", "")
+    url = f"http://{host}/v1/files/upload"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    files = []
+    for item in audio_items:
+        audio_uid = item.get("content", "")
+        if not audio_uid:
+            continue
+
+        audio_root = os.path.join(settings.MEDIA_ROOT, "audios")
+        audio_path = None
+        if os.path.exists(audio_root):
+            for conv_dir in os.listdir(audio_root):
+                candidate = os.path.join(audio_root, conv_dir, f"{audio_uid}.webm")
+                if os.path.isfile(candidate):
+                    audio_path = candidate
+                    break
+
+        if not audio_path:
+            print(f"[build_dify_audio_files] Audio file not found for audio_uid={audio_uid}")
+            continue
+
+        try:
+            with open(audio_path, "rb") as f:
+                resp = requests.post(
+                    url,
+                    headers=headers,
+                    files={"file": (os.path.basename(audio_path), f, "audio/webm")},
+                    data={"user": "test_user1"},
+                    timeout=30
+                )
+                resp.raise_for_status()
+                upload_file_id = resp.json().get("id", "")
+            if upload_file_id:
+                files.append({
+                    "type": "audio",
+                    "transfer_method": "local_file",
+                    "upload_file_id": upload_file_id
+                })
+            else:
+                print(f"[build_dify_audio_files] upload returned no id for audio_uid={audio_uid}")
+        except Exception as e:
+            print(f"[build_dify_audio_files] Failed for audio_uid={audio_uid}: {e}")
+
+    return files
+
+
+def dify_single_intent_workflow(conversation_uid, user_prompt, image_items=None, audio_items=None):
     """
     並將結果以 Python dict 回傳給呼叫者。
 
     Params:
         user_prompt (str): 使用者輸入內容
-    
+        image_items (list): [{"type": "image", "content": "image_uid"}, ...]
+        audio_items (list): [{"type": "audio", "content": "audio_uid"}, ...]
+
     Returns:
         dict: {
             "status": bool,           # True: 成功, False: 失敗
@@ -211,28 +272,15 @@ def dify_single_intent_workflow(conversation_uid, user_prompt, image_items=None)
     result = ConversationController.get_dify_conversation_id(conversation_uid)
     dify_conversation_id = result.get("data", "")
 
-    # 上傳圖片到 Dify 並組裝 files 參數
+    # 上傳圖片與音檔到 Dify 並組裝 files 參數
     dify_files = []
     if image_items:
-        dify_files = build_dify_files(image_items, api_key)
-
-    # 將圖片 URL 附加到 query（因為 Dify Agent Strategy plugin 無法接收 files 參數）
-    # Plugin 從 query 解析 URL 後建構多模態 UserPromptMessage，Dify 模型層會從 URL 下載圖片
-    enriched_query = user_prompt
-    if image_items:
-        backend_host = os.getenv("HTTP_WORKFLOW_MGT_HOST")
-        backend_port = os.getenv("HTTP_WORKFLOW_MGT_PORT")
-        api_version = os.getenv("WORKFLOW_MGT_API_VERSION")
-
-        for idx, item in enumerate(image_items):
-            image_uid = item.get("content", "")
-            if not image_uid:
-                continue
-            image_url = f"http://{backend_host}:{backend_port}/api/{api_version}/conversation_mgt/ImageManager/serve_image/{image_uid}"
-            enriched_query += f"\n[IMAGE_URL_{idx}]{image_url}[/IMAGE_URL_{idx}]"
+        dify_files.extend(build_dify_image_files(image_items, api_key))
+    if audio_items:
+        dify_files.extend(build_dify_audio_files(audio_items, api_key))
 
     payload = {
-        "query": enriched_query,
+        "query": user_prompt,
         "inputs": {"conversation_uid": conversation_uid},
         "response_mode": "streaming",
         "user": "test_user1",
@@ -304,7 +352,11 @@ def dify_single_intent_workflow(conversation_uid, user_prompt, image_items=None)
                     text_content = [{"type": "message", "content": answer}]
 
                     if image_url != "":
-                        full_download_url = f"http://{host}{image_url}"
+                        # image_url 可能已是完整 URL（FILES_URL 已設定）或相對路徑
+                        if image_url.startswith("http://") or image_url.startswith("https://"):
+                            full_download_url = image_url
+                        else:
+                            full_download_url = f"http://{host}{image_url}"
                         text_content.append({"type": "image", "content": full_download_url})
 
                     work_payload = {
