@@ -5,9 +5,11 @@ import os
 import json
 import traceback
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from asgiref.sync import sync_to_async
+
+_TZ_TAIPEI = timezone(timedelta(hours=8))
 
 load_dotenv()
 log_folder_path = os.environ.get('LOGS_FOLDER_PATH')
@@ -23,7 +25,7 @@ def generate_log_content(log_level, status_code, source_type='system', func=None
     根據來源（內部模組、外部系統）產生對應格式的 log 字串
     - source_type: 'system' | 'dify engine'
     """
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.now(_TZ_TAIPEI).strftime("%Y-%m-%d %H:%M:%S")
 
     if isinstance(func, str):
         log_str = f"[{log_level}] [{status_code}] [{source_type}]: {func} [message]: {message}"
@@ -45,7 +47,7 @@ def log_trigger():
         @wraps(func)
         def wrapper(*args, **kwargs):
             ensure_log_folder_exists()
-            log_file_name = f"{datetime.now().strftime('%Y-%m-%d')}_log.txt"
+            log_file_name = f"{datetime.now(_TZ_TAIPEI).strftime('%Y-%m-%d')}_log.txt"
             log_file_path = os.path.join(log_folder_path, log_file_name)
 
             try:
@@ -103,7 +105,7 @@ def log_writer(log_level, status_code, source_type='system', func=None, args=Non
     - source_type: 'system' | 'dify engine'
     """
     ensure_log_folder_exists()
-    log_file_name = f"{datetime.now().strftime('%Y-%m-%d')}_log.txt"
+    log_file_name = f"{datetime.now(_TZ_TAIPEI).strftime('%Y-%m-%d')}_log.txt"
     log_file_path = os.path.join(log_folder_path, log_file_name)
 
     log_content = generate_log_content(log_level, status_code, source_type, func, args, message)

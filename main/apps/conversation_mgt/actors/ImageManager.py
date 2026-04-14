@@ -363,26 +363,3 @@ class ImageManager:
             print(f"Error serving image: {e}")
             return JsonResponse({'error': 'Image could not be served due to server error.'}, status=500)
 
-    @require_http_methods(["GET"])
-    def serve_image(request, image_uid):
-        """
-        GET endpoint：透過 URL 直接提供圖片。
-        供 Dify Plugin 等外部服務以 URL 方式存取圖片。
-        URL: /api/v3/conversation_mgt/ImageManager/serve_image/<image_uid>
-        """
-        try:
-            # 在 media/images/ 下搜尋該 image_uid
-            images_root = os.path.join(settings.MEDIA_ROOT, "images")
-            if not os.path.exists(images_root):
-                raise Http404("Image not found.")
-
-            for conv_dir in os.listdir(images_root):
-                candidate = Path(images_root) / conv_dir / f"{image_uid}.png"
-                if candidate.is_file():
-                    return FileResponse(open(candidate, 'rb'), content_type='image/png')
-
-            raise Http404("Image not found.")
-        except Http404:
-            return JsonResponse({'error': 'Image not found'}, status=404)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)

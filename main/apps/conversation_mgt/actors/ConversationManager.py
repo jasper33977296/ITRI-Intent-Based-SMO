@@ -214,7 +214,6 @@ class ConversationManager:
         8) 呼叫 topic_mgt: delete_topic
         """
         try:
-            # 1) 解析 JSON, 檢查必填欄位
             payload = json.loads(request.body)
 
             # 1) 必填欄位檢查
@@ -295,7 +294,16 @@ class ConversationManager:
                 # 圖片資料夾可能不存在（該對話從未有圖片），不阻斷主流程
                 print(f"Warning: Failed to delete image folder for {conversation_uid}: {e}")
 
-            # 6) 呼叫 metadata_mgt: delete_conversation_metadata
+            # 6) 清理孤兒音檔：刪除 media/audios/{conversation_uid}/ 整個資料夾
+            try:
+                from django.conf import settings
+                audio_dir = os.path.join(settings.MEDIA_ROOT, "audios", conversation_uid)
+                delete_folder(audio_dir)
+            except Exception as e:
+                # 音訊資料夾可能不存在（該對話從未有音訊），不阻斷主流程
+                print(f"Warning: Failed to delete audio folder for {conversation_uid}: {e}")
+
+            # 7) 呼叫 metadata_mgt: delete_conversation_metadata
             try:
                 resp_del = json_request(
                     module="metadata_mgt",
@@ -313,7 +321,7 @@ class ConversationManager:
             if not del_meta_data.get("status_code", 400):
                 return JsonResponse(del_meta_data, status=del_meta_data.get("status_code", 400))
 
-            # 7) 刪除 texts/{conversation_uid} 資料夾 (若裡面已空則快; 若有殘留檔案也能清掉)
+            # 8) 刪除 texts/{conversation_uid} 資料夾 (若裡面已空則快; 若有殘留檔案也能清掉)
             try:
                 text_dir = os.path.join("texts", conversation_uid)
                 delete_folder(text_dir)
@@ -323,7 +331,7 @@ class ConversationManager:
                     "message": f"Failed to remove folder texts/{conversation_uid}: {str(e)}"
                 }, status=500)
 
-            # 8) 刪除 conversations/{user_uid}/{conversation_uid}.csv
+            # 9) 刪除 conversations/{user_uid}/{conversation_uid}.csv
             try:
                 delete_file(conversation_path)
             except Exception as e:
@@ -332,7 +340,7 @@ class ConversationManager:
                     "message": f"Failed to remove CSV file: {str(e)}"
                 }, status=500)
 
-            # 9) 呼叫 topic_mgt: delete_topic
+            # 10) 呼叫 topic_mgt: delete_topic
             try:
                 resp_del = json_request(
                     module="topic_mgt",

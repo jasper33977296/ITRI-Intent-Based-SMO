@@ -1,7 +1,7 @@
 import os
 import json
 import openai
-import google.generativeai as genai
+import google.genai as genai
 from typing import Callable
 
 # --- OpenAI API 呼叫函式 ---
@@ -29,15 +29,13 @@ def call_openai_api_for_title(prompt: str, model_name: str = "gpt-3.5-turbo") ->
         return "標題生成失敗"
 
 # --- Gemini API 呼叫函式  ---
-def call_gemini_api_for_title(prompt: str, model_name: str = "gemini-1.5-flash") -> str:
+def call_gemini_api_for_title(prompt: str, model_name: str = "gemini-2.0-flash") -> str:
     """僅用於生成標題的 Gemini API 呼叫。"""
     try:
         api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key: raise ValueError("未設定 GOOGLE_API_KEY 環境變數")
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_name)
-        # 直接生成內容，不需對話歷史
-        response = model.generate_content(prompt)
+        if not api_key: raise ValueError("未設定 GEMINI_API_KEY 環境變數")
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(model=model_name, contents=prompt)
         return response.text
     except Exception as e:
         print(f"[Gemini API 錯誤]: {e}")
