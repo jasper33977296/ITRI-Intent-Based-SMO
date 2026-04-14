@@ -4,6 +4,7 @@ from main.apps.metadata_mgt.actors.ConversationManager import ConversationManage
 from main.apps.metadata_mgt.actors.TextManager import TextManager
 from main.apps.metadata_mgt.actors.WorkflowManager import WorkflowManager
 from main.apps.metadata_mgt.actors.ImageManager import ImageManager
+from main.apps.metadata_mgt.actors.AudioManager import AudioManager
 from main.apps.metadata_mgt.actors.AgentManager import AgentManager
 
 urlpatterns = [
@@ -29,6 +30,10 @@ urlpatterns = [
     path('metadata_mgt/ImageManager/get_image_metadata', ImageManager.get_image_metadata,name='get_image_metadata'),
     path('metadata_mgt/ImageManager/get_image_metadata_list', ImageManager.get_image_metadata_list,name='get_image_metadata_list'),
     path('metadata_mgt/ImageManager/delete_image_metadata', ImageManager.delete_image_metadata,name='delete_image_metadata'),
+    path('metadata_mgt/AudioManager/create_audio_metadata', AudioManager.create_audio_metadata, name='create_audio_metadata'),
+    path('metadata_mgt/AudioManager/get_audio_metadata', AudioManager.get_audio_metadata, name='get_audio_metadata'),
+    path('metadata_mgt/AudioManager/get_audio_metadata_list', AudioManager.get_audio_metadata_list, name='get_audio_metadata_list'),
+    path('metadata_mgt/AudioManager/delete_audio_metadata', AudioManager.delete_audio_metadata, name='delete_audio_metadata'),
     path('metadata_mgt/AgentManager/create_agent_metadata', AgentManager.create_agent_metadata,name='create_agent_metadata'),
     path('metadata_mgt/AgentManager/get_agent_name', AgentManager.get_agent_name,name='get_agent_name'),
     path('metadata_mgt/AgentManager/get_agent_list_metadata', AgentManager.get_agent_list_metadata,name='get_agent_list_metadata'),

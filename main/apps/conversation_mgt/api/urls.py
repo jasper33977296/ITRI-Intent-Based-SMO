@@ -2,7 +2,7 @@ from django.urls import path
 from main.apps.conversation_mgt.actors.ConversationManager import ConversationManager
 from main.apps.conversation_mgt.actors.TextManager import TextManager
 from main.apps.conversation_mgt.actors.ImageManager import ImageManager
-from main.apps.conversation_mgt.actors.SpeechManager import SpeechManager
+from main.apps.conversation_mgt.actors.AudioManager import AudioManager
 
 urlpatterns = [
     path("conversation_mgt/ConversationManager/create_conversation",ConversationManager.create_conversation,name='create_conversation'),
@@ -14,10 +14,12 @@ urlpatterns = [
     path("conversation_mgt/TextManager/delete_text",TextManager.delete_text,name='delete_text'),
     path("conversation_mgt/TextManager/reward_text",TextManager.reward_text,name='reward_text'),
     path("conversation_mgt/ImageManager/upload_image",ImageManager.upload_image,name='upload_image'),
-    path("conversation_mgt/ImageManager/serve_image/<str:image_uid>",ImageManager.serve_image,name='serve_image'),
     path("conversation_mgt/ImageManager/create_image",ImageManager.create_image,name='create_image'),
     path("conversation_mgt/ImageManager/get_image_list",ImageManager.get_image_list,name='get_image_list'),
     path("conversation_mgt/ImageManager/delete_image",ImageManager.delete_image,name='delete_image'),
     path("conversation_mgt/ImageManager/get_image",ImageManager.get_image,name='get_image'),
-    path("conversation_mgt/SpeechManager/transcribe",SpeechManager.transcribe,name='transcribe'),
+    path("conversation_mgt/AudioManager/upload_audio",AudioManager.upload_audio,name='upload_audio'),
+    path("conversation_mgt/AudioManager/get_audio/<str:audio_uid>",AudioManager.get_audio,name='get_audio'),
+    path("conversation_mgt/AudioManager/get_audio_list",AudioManager.get_audio_list,name='get_audio_list'),
+    path("conversation_mgt/AudioManager/delete_audio",AudioManager.delete_audio,name='delete_audio'),
 ]
