@@ -10,8 +10,8 @@ from main.utils.ApiKit import json_request
 from main.utils.FileKit import create_folder, delete_file
 from main.utils.logger import log_trigger
 
-# 音檔大小限制 (5MB，對應約 30 秒 webm/opus)
-MAX_AUDIO_SIZE = 5 * 1024 * 1024
+# 音檔大小限制 (50MB，WAV 格式約 30 秒)
+MAX_AUDIO_SIZE = 50 * 1024 * 1024
 
 
 class AudioManager:
@@ -25,7 +25,7 @@ class AudioManager:
         1. 接收 multipart/form-data（conversation_uid + audio 檔案）
         2. 檢查檔案大小 ≤ 5MB
         3. 呼叫 metadata_mgt 建立 audio metadata
-        4. 儲存音檔到 media/audios/{conversation_uid}/{audio_uid}.webm
+        4. 儲存音檔到 media/audios/{conversation_uid}/{audio_uid}.wav
         5. 回傳 audio_uid
         """
         try:
@@ -69,7 +69,7 @@ class AudioManager:
 
             audio_uid = meta_data["data"]["audio_uid"]
             audio_dir = os.path.join(settings.MEDIA_ROOT, "audios", conversation_uid)
-            audio_path = os.path.join(audio_dir, f"{audio_uid}.webm")
+            audio_path = os.path.join(audio_dir, f"{audio_uid}.wav")
 
             create_folder(audio_dir)
             try:
@@ -113,7 +113,7 @@ class AudioManager:
             if not audio_path.is_file():
                 raise Http404("Audio file not found.")
 
-            return FileResponse(open(audio_path, 'rb'), content_type='audio/webm')
+            return FileResponse(open(audio_path, 'rb'), content_type='audio/wav')
         except Http404:
             return JsonResponse({'error': 'Audio not found'}, status=404)
         except Exception as e:

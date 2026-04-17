@@ -17,7 +17,7 @@ class AudioController:
                 }
 
             new_audio_uid = uuid.uuid4()
-            audio_path = f"audios/{conversation_uid}/{new_audio_uid}.webm"
+            audio_path = f"audios/{conversation_uid}/{new_audio_uid}.wav"
 
             audio_obj = Audio.objects.create(
                 audio_uid=new_audio_uid,

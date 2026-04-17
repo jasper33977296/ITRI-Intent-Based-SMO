@@ -204,13 +204,20 @@ def build_dify_audio_files(audio_items, api_key):
         audio_path = None
         if os.path.exists(audio_root):
             for conv_dir in os.listdir(audio_root):
-                candidate = os.path.join(audio_root, conv_dir, f"{audio_uid}.webm")
+                candidate = os.path.join(audio_root, conv_dir, f"{audio_uid}.wav")
                 if os.path.isfile(candidate):
                     audio_path = candidate
                     break
 
         if not audio_path:
-            print(f"[build_dify_audio_files] Audio file not found for audio_uid={audio_uid}")
+            log_writer(
+                log_level="ERROR",
+                status_code="810",
+                source_type="system",
+                func=build_dify_audio_files,
+                args=None,
+                message=f"Audio file not found for audio_uid={audio_uid}, MEDIA_ROOT={settings.MEDIA_ROOT}",
+            )
             continue
 
         try:
@@ -218,7 +225,7 @@ def build_dify_audio_files(audio_items, api_key):
                 resp = requests.post(
                     url,
                     headers=headers,
-                    files={"file": (os.path.basename(audio_path), f, "audio/webm")},
+                    files={"file": (os.path.basename(audio_path), f, "audio/wav")},
                     data={"user": "test_user1"},
                     timeout=30
                 )
@@ -231,9 +238,23 @@ def build_dify_audio_files(audio_items, api_key):
                     "upload_file_id": upload_file_id
                 })
             else:
-                print(f"[build_dify_audio_files] upload returned no id for audio_uid={audio_uid}")
+                log_writer(
+                    log_level="ERROR",
+                    status_code="810",
+                    source_type="dify engine",
+                    func=build_dify_audio_files,
+                    args=None,
+                    message=f"upload returned no id for audio_uid={audio_uid}",
+                )
         except Exception as e:
-            print(f"[build_dify_audio_files] Failed for audio_uid={audio_uid}: {e}")
+            log_writer(
+                log_level="ERROR",
+                status_code="810",
+                source_type="system",
+                func=build_dify_audio_files,
+                args=None,
+                message=f"EXCEPTION for audio_uid={audio_uid}: {e}",
+            )
 
     return files
 
@@ -279,8 +300,16 @@ def dify_single_intent_workflow(conversation_uid, user_prompt, image_items=None,
     if audio_items:
         dify_files.extend(build_dify_audio_files(audio_items, api_key))
 
+    # 若無文字但有音訊/圖片，Dify query 需要非空字串
+    if user_prompt:
+        effective_prompt = user_prompt
+    elif audio_items:
+        effective_prompt = "請聆聽附件中的音訊內容，理解使用者的語音需求並回應。"
+    else:
+        effective_prompt = "(image)"
+
     payload = {
-        "query": user_prompt,
+        "query": effective_prompt,
         "inputs": {"conversation_uid": conversation_uid},
         "response_mode": "streaming",
         "user": "test_user1",
@@ -288,6 +317,7 @@ def dify_single_intent_workflow(conversation_uid, user_prompt, image_items=None,
         "files": dify_files,
         "auto_generate_name": True
     }
+
     workflow_finished_data = None
     image_url = "" # 用於儲存圖片 URL
     has_sent_event_2 = False # 用於追蹤是否已發送過 event_type "2"
@@ -302,6 +332,56 @@ def dify_single_intent_workflow(conversation_uid, user_prompt, image_items=None,
             timeout=60,
             stream=True
         )
+
+        # 若 Dify 返回非 SSE (text/event-stream)，可能是 JSON error
+        content_type = response.headers.get("Content-Type", "")
+        if "text/event-stream" not in content_type:
+            # 非 SSE 回應 → 讀取完整 body 檢查錯誤
+            body = response.text[:500]
+            log_writer(
+                log_level="ERROR",
+                status_code="802",
+                source_type="dify engine",
+                func=dify_single_intent_workflow,
+                args=None,
+                message=f"Non-SSE response body: {body}",
+            )
+
+        # 若 Dify 返回非 2xx，直接記錄並推播錯誤給前端
+        if not response.ok:
+            log_writer(
+                log_level="ERROR",
+                status_code="802",
+                source_type="dify engine",
+                func=dify_single_intent_workflow,
+                args=None,
+                message=f"Dify error body (HTTP {response.status_code}): {response.text[:500]}",
+            )
+            try:
+                json_request(
+                    module="workflow_mgt",
+                    actor="Producer",
+                    function="dispatch_topic",
+                    payload={
+                        "event_type": "0",
+                        "conversation_uid": conversation_uid,
+                        "text_content": [{"type": "message", "content": f"Dify 呼叫失敗 (HTTP {response.status_code})，請稍後再試。"}],
+                    },
+                )
+            except Exception as de:
+                log_writer(
+                    log_level="ERROR",
+                    status_code="802",
+                    source_type="system",
+                    func=dify_single_intent_workflow,
+                    args=None,
+                    message=f"dispatch error failed: {de}",
+                )
+            return {
+                "status_code": response.status_code,
+                "message": f"Dify returned error: {response.text[:200]}",
+                "data": "error"
+            }
 
         # 更新 workflow step & status 2
         work_payload = {
@@ -325,6 +405,8 @@ def dify_single_intent_workflow(conversation_uid, user_prompt, image_items=None,
         agent_files_list = []  # 從 Agent 節點擷取的 files（Answer 節點可能不帶 files）
         for event in client.events():
             try:
+                if not event.data or event.data.strip() == "[DONE]":
+                    continue
                 data = json.loads(event.data)
                 node_event = data.get("event", "")
                 node_type = data.get("data", {}).get("node_type", "")
@@ -382,9 +464,23 @@ def dify_single_intent_workflow(conversation_uid, user_prompt, image_items=None,
                     break
 
             except json.JSONDecodeError as e:
-                print(f"JSON 解析錯誤: {e}, 原始數據: {event.data}")
+                log_writer(
+                    log_level="ERROR",
+                    status_code="802",
+                    source_type="dify engine",
+                    func=dify_single_intent_workflow,
+                    args=None,
+                    message=f"SSE JSONDecodeError: {e}, raw_data={event.data[:200]!r}",
+                )
             except Exception as e:
-                print(f"處理事件時發生錯誤: {e}, 原始數據: {event.data}")
+                log_writer(
+                    log_level="ERROR",
+                    status_code="802",
+                    source_type="dify engine",
+                    func=dify_single_intent_workflow,
+                    args=None,
+                    message=f"SSE Exception: {e}, raw_data={event.data[:200]!r}",
+                )
 
         # 3. 整理解析結果
         if workflow_finished_data:
@@ -480,20 +576,58 @@ def dify_single_intent_workflow(conversation_uid, user_prompt, image_items=None,
             }
 
     except requests.exceptions.Timeout as e:
+        log_writer(
+            log_level="ERROR",
+            status_code="803",
+            source_type="dify engine",
+            func=dify_single_intent_workflow,
+            args=None,
+            message=f"TIMEOUT: {e}",
+        )
+        try:
+            json_request(
+                module="workflow_mgt", actor="Producer", function="dispatch_topic",
+                payload={"event_type": "0", "conversation_uid": conversation_uid,
+                         "text_content": [{"type": "message", "content": "Dify 工作流回應超時，請稍後再試。"}]},
+            )
+        except Exception:
+            pass
         return {
             "status_code": 500,
             "message": f"Request Timeout: {str(e)}",
-            "data": None
+            "data": "error"
         }
     except requests.exceptions.RequestException as e:
-        # 包含所有 requests 模組可能出現的網路錯誤 (ConnectionError, HTTPError 等)
+        log_writer(
+            log_level="ERROR",
+            status_code="803",
+            source_type="dify engine",
+            func=dify_single_intent_workflow,
+            args=None,
+            message=f"RequestException: {e}",
+        )
+        try:
+            json_request(
+                module="workflow_mgt", actor="Producer", function="dispatch_topic",
+                payload={"event_type": "0", "conversation_uid": conversation_uid,
+                         "text_content": [{"type": "message", "content": "Dify 連線異常，請稍後再試。"}]},
+            )
+        except Exception:
+            pass
         return {
             "status_code": 500,
             "message": f"HTTP/Network Error: {str(e)}",
-            "data": None
+            "data": "error"
         }
     except Exception as e:
-        # 其他非 requests 相關的意外錯誤
+        log_writer(
+            log_level="ERROR",
+            status_code="801",
+            source_type="system",
+            func=dify_single_intent_workflow,
+            args=None,
+            message=f"UnexpectedException: {e}",
+        )
         return {
             "status_code": 500,
             "message": f"Unexpected Error: {str(e)}",

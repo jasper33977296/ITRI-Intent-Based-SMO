@@ -53,6 +53,7 @@ class WorkflowManager:
                 "workflow_status": "1"
             }
 
+            work_data = {}
             try:
                 resp = json_request(
                     module="workflow_mgt",
@@ -63,10 +64,6 @@ class WorkflowManager:
                 work_data = resp.json()
             except Exception as e:
                 print("Workflow 更新失敗: ", e)
-
-            # 檢查後端回傳是否成功
-            if not work_data.get("status_code", 400):
-                return JsonResponse(work_data, status_code=work_data.get("status_code", 400))
 
             # (2) 呼叫 dify 執行工作流
             result = dify_single_intent_workflow(conversation_uid, user_content, image_items, audio_items)
